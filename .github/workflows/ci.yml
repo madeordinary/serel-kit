@@ -1,0 +1,57 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    # These are Serel Kit's own integrity checks: the installer, and the rule
+    # that every pack ships both adapters. They are meaningless in a repo that
+    # merely installed a pack, so the job self-disables outside this repository.
+    if: github.repository == 'madeordinary/serel-kit'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Make scripts executable
+        run: chmod +x install.sh tests/*.sh
+
+      - name: ShellCheck the installer and tests
+        run: shellcheck install.sh tests/*.sh
+
+      - name: Packs ship both adapters, with their resources
+        run: bash tests/check-packs.sh
+
+      # The install smoke test scaffolds a Serel Memory project from this
+      # checkout and runs Memory's own framework checks inside it. If the
+      # checkout fails, the test skips those cases rather than failing the run.
+      - name: Check out Serel Memory for the install smoke test
+        uses: actions/checkout@v7
+        continue-on-error: true
+        with:
+          repository: madeordinary/serel-memory
+          path: .serel-memory-checkout
+
+      - name: Packs install, refuse, converge, and never overwrite
+        run: |
+          if [ -d .serel-memory-checkout/.git ]; then
+            SEREL_MEMORY_REPO="$PWD/.serel-memory-checkout" bash tests/smoke-install.sh
+          else
+            echo "note: Serel Memory checkout unavailable; the Memory cases will skip"
+            bash tests/smoke-install.sh
+          fi
+
+  docs:
+    # Markdown hygiene for the prompt files themselves. Same repo guard.
+    if: github.repository == 'madeordinary/serel-kit'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Markdown lint
+        run: npx --yes markdownlint-cli2 "**/*.md"
