@@ -65,10 +65,15 @@ Stop before writing anything when:
 
 - **There is no `.serel-memory.json`.** This workflow targets a Serel Memory
   bank. Say so and stop.
-- **The bank is uninitialized** — files missing, empty, or still only template
-  placeholders. Say which files, and ask the user to seed the bank first:
-  `/discover` if there is no code yet, `/init-memory` if there is,
-  `/from-prd` if a spec exists. Do not create the bank yourself.
+- **The bank is uninitialized** — a plain `memory-bank/` whose core files are
+  missing, empty, or still only template placeholders. Say which files, and ask
+  the user to seed the bank first: `/discover` if there is no code yet,
+  `/init-memory` if there is, `/from-prd` if a spec exists. Do not create the
+  bank yourself. One exception, straight from Memory's contract: a
+  `memory-bank.local/` overlay is **partial by design**. Core files it does not
+  carry are not an uninitialized bank — read `README.md` and `docs/` for the
+  intent they would have held, do not flag the tracked templates behind them,
+  and carry on.
 - **`--scope` names something that is not a project root.** List the valid
   selectors and stop.
 - **No feature was named.** List the maps already in
@@ -88,7 +93,11 @@ anchor. If the map surfaces something those files should say, mention it and
 let `/update-memory` handle it.
 
 Serel Memory's rule applies: show the diff and wait for confirmation before
-writing. On a new file, show the full proposed content.
+writing. A new file is shown as an **added-file diff** — the
+`--- /dev/null` / `+++ b/<path>` header and every line prefixed with `+` — not
+as a bare document body. The proposal then reads the same way whether the file
+is new or being refreshed, and there is no way to mistake it for a file that
+already exists.
 
 ## Steps
 
@@ -105,7 +114,8 @@ writing. On a new file, show the full proposed content.
    unverified.
 6. Refresh, don't rewrite: keep older records verbatim, add the new one on
    top, and update Status and Paths if they changed.
-7. Show the diff (or the full file, if new) and ask for confirmation.
+7. Show the diff — added-file form when the file is new — and ask for
+   confirmation.
 8. Write only after the user confirms. Then print the path and stop.
 
 ## Output contract
@@ -115,7 +125,7 @@ VERIFY-MAP: <feature> — <new | refreshed>
 BANK: <effective bank path>
 FILE: <effective bank>/verification/<feature>.md
 
-<the diff, or the full proposed file if it is new>
+<the diff: an added-file diff when the file is new, a unified diff on refresh>
 
 RECORDS: <n> (newest <date>) | none — this feature is unverified
 UNVERIFIED CLAIMS: <anything in the Recipe you could not confirm yourself>

@@ -100,7 +100,9 @@ Expect:
 
 - A header block naming the feature, the resolved bank path, and the file it
   proposes to write.
-- The full proposed file, with Recipe and Records as separate sections.
+- The proposed file as an added-file diff — a `--- /dev/null` and
+  `+++ b/memory-bank/verification/<feature>.md` header, every line prefixed
+  with `+` — with Recipe and Records as separate sections.
 - Launch commands that actually exist in the repo — check one against the
   project README.
 - `RECORDS: none - this feature is unverified`, because you have not run it.
@@ -114,12 +116,14 @@ Answer yes. Afterwards `memory-bank/verification/<feature>.md` exists, and
 Type `$verify-map <the same feature>` in a fresh session.
 
 Expect the same header block, the same two sections, and the same question
-before anything is written. It should recognize the file you already have and
-offer a refresh rather than a new file.
+before anything is written. Because the file now exists, expect a unified diff
+against it and the word `refreshed` in the header, not a second added-file
+diff.
 
 ### It failed if
 
 - It wrote before you confirmed.
+- It printed a bare file body instead of an added-file diff.
 - Any file other than the map changed.
 - It filled in a Records entry, including a date and a "worked as expected",
   when nobody had run anything.
