@@ -1,0 +1,8 @@
+# OS
+.DS_Store
+
+# npx markdownlint pulls this in when run locally
+node_modules/
+
+# CI checks Serel Memory out here to run the install smoke test
+.serel-memory-checkout/

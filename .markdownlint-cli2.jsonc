@@ -1,0 +1,19 @@
+{
+  // Serel Kit is prose and prompt files. Lint for things that break structure —
+  // malformed lists, unclosed fences, bad headings — not for style choices that
+  // would make a workflow file harder to read.
+  "config": {
+    "default": true,
+    "MD013": false, // line length — prose and tables wrap where they read best
+    "MD033": false, // inline HTML — badges, and <placeholder> markers in templates
+    "MD041": false, // first line must be a heading — adapters open with frontmatter
+    "MD024": { "siblings_only": true }, // the same subheading under different sections is fine
+    "MD036": false, // emphasis used as a heading — deliberate inside workflows
+    "MD029": false, // ordered-list numbering — steps are numbered explicitly
+    "MD060": false  // table pipe spacing — renders fine, pure churn
+  },
+  "ignores": [
+    "node_modules",
+    ".serel-memory-checkout"
+  ]
+}
