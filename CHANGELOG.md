@@ -22,7 +22,9 @@ installs, upgrades, or reconfigures Serel Memory.
   Requires the target to be the root of a git repository. Detects Serel Memory
   by `.serel-memory.json` and refuses a pack that needs it, with a link to
   Memory's install instructions and zero writes. Pack names are canonicalized
-  first, so `verify/` and `./verify` cannot spell their way past that gate.
+  and then matched byte for byte against the real entries of `packs/`, so
+  neither `verify/` nor `Verify` on a case-insensitive filesystem can spell
+  its way past that gate.
   Preflights the complete payload before writing: identical files are skipped,
   an existing file that differs is a CONFLICT that stops the whole run, and
   every destination *ancestor* is checked too — a symlink anywhere on the path

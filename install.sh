@@ -120,11 +120,18 @@ for raw in "${raw_packs[@]}"; do
   [ -n "$p" ] || continue
   case "$p" in
     */*) die "a pack name is a plain name, not a path: '$raw'" ;;
-    .|..) die "not a pack name: '$raw'" ;;
   esac
+  # Match the name against the real entries of packs/, byte for byte. Testing
+  # `-d packs/$p` would accept `Verify` on a case-insensitive filesystem, which
+  # resolves to the verify payload while the Serel Memory gate below — which
+  # compares strings — would not recognize it.
+  known=0
+  for dir in "$KIT_ROOT"/packs/*/; do
+    if [ "$(basename "$dir")" = "$p" ]; then known=1; break; fi
+  done
+  [ "$known" -eq 1 ] || die "no such pack: '$raw' (run: install.sh --list)"
   case "$seen" in *" $p "*) continue ;; esac
   seen="$seen$p "
-  [ -d "$KIT_ROOT/packs/$p" ] || die "no such pack: $p (run: install.sh --list)"
   [ -d "$KIT_ROOT/packs/$p/.claude/commands" ] || die "pack '$p' has no .claude/commands directory"
   [ -d "$KIT_ROOT/packs/$p/.agents/skills" ] || die "pack '$p' has no .agents/skills directory"
   packs+=("$p")
