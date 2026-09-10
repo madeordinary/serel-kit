@@ -77,16 +77,25 @@ Before:
 ```text
 It is worth noting that we have leveraged a comprehensive caching solution in
 order to significantly improve the performance characteristics of the service,
-and initial results have been quite promising.
+and the initial results have been quite promising. For what it's worth the
+team went with Redis, on the account lookup, and in the staging environment
+p95 on the /accounts endpoint has come down from 420ms to 90ms, at least as
+of the measurements that were taken on 4 March 2026 on the perf/redis-cache
+branch, though we haven't yet had a chance to look at production numbers.
 ```
 
 After:
 
 ```text
 Redis caches the account lookup. p95 on `/accounts` fell from 420 ms to 90 ms
-in staging (2026-03-04, `perf/redis-cache`). Not yet measured in production.
+in staging (4 March 2026, `perf/redis-cache`). Not yet measured in production.
 ```
 
-Shorter, but that is a side effect. The rewrite is better because it names the
-cache, gives the numbers, cites where they came from, and admits what is still
-unknown.
+Shorter, but that is a side effect. The rewrite is better because it leads with
+the cache, gives the numbers, cites where they came from, and keeps the
+admission that production is unmeasured.
+
+Every fact in the rewrite was already in the original — the cache, the endpoint,
+both numbers, the environment, the date, the branch, the missing production
+measurement. That is the test. If a fact only appears in the "after", the
+rewrite invented it, and rule 13 says it is not a rewrite any more.

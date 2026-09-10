@@ -12,6 +12,7 @@ Usage:
 ```text
 /polish memory-bank/activeContext.md
 /polish docs/prd.md "## Goals"
+/polish activeContext.md --scope projects/storefront
 /polish            # then paste the text
 ```
 
@@ -33,6 +34,35 @@ whether the claim is true.
    section is allowed to assume.
 3. If the target is a memory bank file, read `docs/workflow-contract.md`
    "Retention" when the repo has it. It says which structure is load-bearing.
+
+## When the target is memory bank content
+
+`/polish` works on any prose, with or without Serel Memory. But when the
+target is bank content — a file under `memory-bank/` or `memory-bank.local/`,
+`.rules`, or a bare name that matches one of them — work out *which* bank
+first, exactly as `docs/workflow-contract.md` says. Polishing the wrong copy
+of `activeContext.md` is worse than not polishing it.
+
+1. **Resolve the scope** ("Resolving scope"). `--scope <path>` selects it and
+   `.` is the repo root; otherwise the project root the current directory sits
+   in; otherwise the repo root. Exactly one scope per invocation, never a
+   remembered one. A `--scope` that is not a project root stops the workflow
+   with the list of valid selectors.
+2. **Resolve the effective bank** ("Resolving the effective bank"). Inside
+   that scope root, `memory-bank.local/` is the effective bank when it exists,
+   otherwise `memory-bank/`. Read and diff the file in the effective bank, not
+   its counterpart in the other one.
+3. **Stop if the bank is uninitialized.** If the file you were asked to polish
+   is missing, empty, or still only template placeholders, there is nothing to
+   polish. Name it and point at `/discover` (no code yet), `/init-memory`
+   (code exists), or `/from-prd` (a spec exists). One exception from Memory's
+   contract: a `memory-bank.local/` overlay is partial by design, so a core
+   file it does not carry is not an uninitialized bank — fall back to the
+   tracked file for context, and stop only if the target exists in neither.
+
+Ordinary prose — a PR body, a README, release notes, pasted text — skips all
+of this, and so does a repo with no `.serel-memory.json`. The rest of the
+workflow is identical either way.
 
 ## Allowed writes
 
@@ -94,7 +124,7 @@ Stop and ask, before producing any diff, when:
 - The file does not exist, or the named heading is not in it.
 - The text depends on facts you cannot check, and a faithful rewrite would
   force you to invent one. Quote the sentence and ask what it means.
-- The target is a memory bank file in a repo that configures `scopes` and the
-  path is ambiguous. Ask which one; never guess a bank.
+- `--scope` was given and does not name a project root. List the valid
+  selectors and stop; never fall back to a different bank.
 - The rewrite would change what the text claims. That is an edit, not a
   polish, and it needs the author.

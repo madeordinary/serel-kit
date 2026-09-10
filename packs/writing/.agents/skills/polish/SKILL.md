@@ -9,7 +9,8 @@ Rewrite prose so a reader gets the facts faster. This skill proposes a rewrite
 and stops. It writes no files.
 
 Invoke it as `$polish <target>`, where the target is a path, a path plus a
-heading, or text the user pastes.
+heading, or text the user pastes. `--scope <path>` selects which bank the
+target lives in, when the target is bank content.
 
 ## Trigger
 
@@ -27,6 +28,35 @@ It is not a review: it changes how a claim reads, never whether it is true.
    can see what that section is allowed to assume.
 3. For a memory bank file, read `docs/workflow-contract.md` "Retention" when
    the repo has it. It names the structure that is load-bearing.
+
+## When the target is memory bank content
+
+`$polish` works on any prose, with or without Serel Memory. But when the
+target is bank content — a file under `memory-bank/` or `memory-bank.local/`,
+`.rules`, or a bare name that matches one of them — work out *which* bank
+first, exactly as `docs/workflow-contract.md` says. Polishing the wrong copy
+of `activeContext.md` is worse than not polishing it.
+
+1. **Resolve the scope** ("Resolving scope"). `--scope <path>` selects it and
+   `.` is the repo root; otherwise the project root the current directory sits
+   in; otherwise the repo root. Exactly one scope per invocation, never a
+   remembered one. A `--scope` that is not a project root stops the skill with
+   the list of valid selectors.
+2. **Resolve the effective bank** ("Resolving the effective bank"). Inside
+   that scope root, `memory-bank.local/` is the effective bank when it exists,
+   otherwise `memory-bank/`. Read and diff the file in the effective bank, not
+   its counterpart in the other one.
+3. **Stop if the bank is uninitialized.** If the file named for polishing is
+   missing, empty, or still only template placeholders, there is nothing to
+   polish. Name it and point at `$discover` (no code yet), `$init-memory`
+   (code exists), or `$from-prd` (a spec exists). One exception from Memory's
+   contract: a `memory-bank.local/` overlay is partial by design, so a core
+   file it does not carry is not an uninitialized bank — fall back to the
+   tracked file for context, and stop only if the target exists in neither.
+
+Ordinary prose — a PR body, a README, release notes, pasted text — skips all
+of this, and so does a repo with no `.serel-memory.json`. The rest of the
+workflow is identical either way.
 
 ## Allowed writes
 
@@ -53,8 +83,9 @@ A rewrite that drops any of these has failed, however much shorter it is:
 
 ## Workflow
 
-1. Resolve the target. If the name matches more than one file, stop and list
-   the matches.
+1. Resolve the target. If it is bank content, resolve the scope and the
+   effective bank first (above). If the name matches more than one file, stop
+   and list the matches.
 2. Read the rules, then the target.
 3. Rewrite. Apply the rules in order; skip any rule that would cost a fact.
 4. Diff your rewrite against the original.
@@ -90,6 +121,6 @@ Stop and ask before producing a diff when:
 - The name matches several files.
 - A faithful rewrite would need a fact you cannot check. Quote the sentence
   and ask.
-- The target is a memory bank file in a repo that configures `scopes` and the
-  path is ambiguous. Ask which bank; never guess.
+- `--scope` was given and does not name a project root. List the valid
+  selectors and stop; never fall back to a different bank.
 - The rewrite would change what the text claims. That needs the author.
