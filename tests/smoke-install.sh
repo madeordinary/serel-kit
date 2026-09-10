@@ -76,8 +76,16 @@ expect_files() {
 
 receipt_packs() { jq -r '.packs | join(",")' "$1/.serel-kit.json"; }
 
-# BSD stat and GNU stat spell the inode format differently; try both.
-inode_of() { stat -f %i "$1" 2>/dev/null || stat -c %i "$1"; }
+# BSD stat and GNU stat spell the inode format differently. Pick the syntax
+# once: GNU stat answers --version, BSD stat does not. Probing with `-f` would
+# not settle it — GNU reads -f as --file-system and succeeds, printing
+# filesystem counters that change as the test writes its own log files.
+if stat --version >/dev/null 2>&1; then
+  stat_inode_fmt="-c%i"
+else
+  stat_inode_fmt="-f%i"
+fi
+inode_of() { stat "$stat_inode_fmt" "$1"; }
 
 new_repo() {
   mkdir -p "$1"
@@ -112,7 +120,10 @@ grep -q 'github.com/madeordinary/serel-memory#install' "$tmproot/refuse.log" ||
 
 # The dependency gate matches on the pack name, so a name that spells the same
 # directory a different way must not slip past it.
-for alias in "verify/" "./verify" ".//verify//"; do
+# `Verify` resolves to the same directory on a case-insensitive filesystem and
+# is simply an unknown pack on a case-sensitive one. Either way the run must
+# stop with nothing written, so both platforms assert the same thing.
+for alias in "verify/" "./verify" ".//verify//" "Verify" "VERIFY"; do
   if bash "$KIT/install.sh" "$plain" --packs "$alias" >"$tmproot/refuse-alias.log" 2>&1; then
     bad "--packs '$alias' installed the verify pack without Serel Memory"
   fi
