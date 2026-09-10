@@ -21,11 +21,17 @@ installs, upgrades, or reconfigures Serel Memory.
 - **`install.sh`** — the pack installer. `install.sh <target> --packs <a,b>`.
   Requires the target to be the root of a git repository. Detects Serel Memory
   by `.serel-memory.json` and refuses a pack that needs it, with a link to
-  Memory's install instructions and zero writes. Preflights the complete
-  payload before writing: identical files are skipped, an existing file that
-  differs is a CONFLICT that stops the whole run. Never overwrites; never
-  writes outside `.claude/`, `.agents/`, and the receipt. Re-running with the
-  same packs converges. Bash, git, and jq only.
+  Memory's install instructions and zero writes. Pack names are canonicalized
+  first, so `verify/` and `./verify` cannot spell their way past that gate.
+  Preflights the complete payload before writing: identical files are skipped,
+  an existing file that differs is a CONFLICT that stops the whole run, and
+  every destination *ancestor* is checked too — a symlink anywhere on the path
+  (which would send the copy into whatever it points at) or a file standing
+  where a directory belongs (which would strand the copy half done) is refused
+  with zero writes. Never overwrites; never writes outside `.claude/`,
+  `.agents/`, and the receipt. Re-running with the same packs converges, and
+  leaves the receipt file itself untouched when its contents are unchanged.
+  Bash, git, and jq only.
 - **`.serel-kit.json`** — an installation receipt written last, recording the
   Kit version and the packs installed. Merged with `jq` when it already exists,
   so unknown keys survive. It is a receipt, never an authority over Serel
@@ -47,15 +53,25 @@ installs, upgrades, or reconfigures Serel Memory.
   manifest, in both directions; every resource an adapter references exists
   inside the pack; no adapter shells out to its own CLI.
 - **`tests/smoke-install.sh`** — installs into throwaway git repositories: one
-  without Serel Memory (writing installs, verify is refused, a mixed request is
-  refused whole) and one with Serel Memory scaffolded from the upstream repo's
-  HEAD. Asserts that adding a pack adds only that pack, that Serel Memory's own
+  without Serel Memory (writing installs; verify is refused however its name is
+  spelled; a mixed request is refused whole; a malformed receipt, a symlinked
+  `.agents/skills`, and a file at `.claude` each stop the run with zero writes)
+  and one with Serel Memory scaffolded from the upstream repo's HEAD. Asserts
+  that adding a pack adds only that pack, that Serel Memory's own
   `check-readlist.sh` and `check-parity.sh` still pass with the packs
   installed, that the bank and anchor are byte-identical afterwards, that a
-  re-run changes nothing, and that a divergent local file stops the run without
-  copying any part of the payload.
+  re-run changes nothing (including the receipt's inode), and that a divergent
+  local file stops the run without copying a file it had already passed in
+  traversal order. Snapshots record directories and symlinks as well as file
+  contents, so a stray empty directory cannot slip through a zero-writes
+  assertion. Needs a Serel Memory checkout (`SEREL_MEMORY_REPO`, or a sibling
+  `../memory`); without one it reports `smoke-install PARTIAL` and exits
+  non-zero unless `SEREL_KIT_ALLOW_PARTIAL=1`.
 - **CI** — shellcheck, markdownlint, and both tests, guarded to the
   `madeordinary/serel-kit` repository so forks and copies do not inherit them.
+  The Serel Memory checkout the smoke test scaffolds from is required, not
+  best-effort: a run that skipped those cases would be a green tick over an
+  untested installer.
 - Acceptance exercises in both pack READMEs: the prompt to type in each CLI,
   the reply to expect, and what should be on disk afterwards.
 

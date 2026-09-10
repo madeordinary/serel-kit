@@ -50,7 +50,8 @@ with a link to Memory's own install instructions. It never writes to
 ## Requirements
 
 - `bash`, `git`, and `jq` to run the installer.
-- A git repository to install into.
+- A git repository to install into. The target is its **repository root**,
+  not a subdirectory.
 - Claude Code or Codex to run the workflows.
 - Serel Memory in the target repo — for the verify pack only.
 
@@ -111,8 +112,8 @@ at install; edit it.
 - **Records** of what someone actually saw, with the revision, environment, and
   a link to the evidence.
 
-No record means nobody has verified it. That is useful information, not a
-failure. A map never replaces running the tests.
+No record means verification is undocumented. That is useful information, not
+a failure. A map never replaces running the tests.
 
 ## What the tests prove, and what they don't
 
@@ -125,16 +126,26 @@ bash tests/smoke-install.sh
 npx --yes markdownlint-cli2 "**/*.md"
 ```
 
-**They prove installation and adapter pairing.** `check-packs.sh` asserts every
-pack ships both adapters plus the Codex manifest, that every resource a
-workflow points at travels with it, and that neither adapter shells out to its
-own CLI. `smoke-install.sh` installs the packs into throwaway git repositories,
-including one with Serel Memory scaffolded from the upstream repo, and checks
-that the refusal path writes nothing, that re-running converges, that a
-divergent local file stops the whole run, that the memory bank and anchor come
-out byte-identical, and that Serel Memory's own checks still pass afterwards.
+**The automated tests prove two things: installation, and adapter pairing.**
+`check-packs.sh` asserts every pack ships both adapters plus the Codex
+manifest, that every resource a workflow points at travels with it, and that
+neither adapter shells out to its own CLI. `smoke-install.sh` installs the
+packs into throwaway git repositories and checks that the refusal path writes
+nothing however the pack name is spelled, that a malformed receipt, a
+symlinked destination path, or a file standing where a directory belongs each
+stop the run with zero writes, that re-running converges, that a divergent
+local file stops the whole run before anything is copied, that the memory bank
+and anchor come out byte-identical, and that Serel Memory's own checks still
+pass afterwards.
 
-**They do not prove the two adapters behave the same way.** No automated test
+Three of those four smoke cases need a Serel Memory checkout to scaffold. The
+test looks for `$SEREL_MEMORY_REPO` first, then a sibling `../memory` or
+`../serel-memory`. Without one it runs the no-Memory cases, prints
+`smoke-install PARTIAL` and **exits non-zero**, so a partial run can never read
+as a pass. Set `SEREL_KIT_ALLOW_PARTIAL=1` to accept a partial run locally. CI
+checks Memory out and requires all four cases.
+
+**They do not prove that a workflow behaves the same way in both CLIs.** No automated test
 here runs Claude Code or Codex. Whether `/polish` and `$polish` produce the same
 kind of answer is something a person has to check, once, by running both. Each
 pack's README ends with an acceptance exercise for exactly that: the prompt to
