@@ -52,13 +52,15 @@ of `activeContext.md` is worse than not polishing it.
    that scope root, `memory-bank.local/` is the effective bank when it exists,
    otherwise `memory-bank/`. Read and diff the file in the effective bank, not
    its counterpart in the other one.
-3. **Stop if the bank is uninitialized.** If the file you were asked to polish
-   is missing, empty, or still only template placeholders, there is nothing to
-   polish. Name it and point at `/discover` (no code yet), `/init-memory`
-   (code exists), or `/from-prd` (a spec exists). One exception from Memory's
-   contract: a `memory-bank.local/` overlay is partial by design, so a core
-   file it does not carry is not an uninitialized bank — fall back to the
-   tracked file for context, and stop only if the target exists in neither.
+3. **Stop if the target is not there to polish.** When the effective bank is
+   a `memory-bank.local/` overlay and the requested file is not in it, stop and
+   say the file is not in the overlay. The overlay is partial by design, so
+   that is not an uninitialized bank — and the tracked starter template behind
+   it is not the file you were asked to polish, so never fall back to it. When
+   the effective bank is a plain `memory-bank/` and the requested file is
+   missing, empty, or still only template placeholders, stop, name it, and
+   point at `/discover` (no code yet), `/init-memory` (code exists), or `/from-prd`
+   (a spec exists). Never create or seed a bank.
 
 Ordinary prose — a PR body, a README, release notes, pasted text — skips all
 of this, and so does a repo with no `.serel-memory.json`. The rest of the
