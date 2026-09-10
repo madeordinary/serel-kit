@@ -110,8 +110,18 @@ toplevel="$(cd "$toplevel" && pwd -P)"
 IFS=',' read -r -a raw_packs <<<"$packs_arg"
 packs=()
 seen=" "
-for p in "${raw_packs[@]}"; do
+for raw in "${raw_packs[@]}"; do
+  # Canonicalize the name before anything downstream sees it. `verify`,
+  # `verify/` and `./verify` are the same directory but not the same string,
+  # and the Serel Memory dependency gate below matches on the string.
+  p="$raw"
+  while [ "${p#./}" != "$p" ]; do p="${p#./}"; done
+  while [ "${p%/}" != "$p" ]; do p="${p%/}"; done
   [ -n "$p" ] || continue
+  case "$p" in
+    */*) die "a pack name is a plain name, not a path: '$raw'" ;;
+    .|..) die "not a pack name: '$raw'" ;;
+  esac
   case "$seen" in *" $p "*) continue ;; esac
   seen="$seen$p "
   [ -d "$KIT_ROOT/packs/$p" ] || die "no such pack: $p (run: install.sh --list)"
@@ -155,13 +165,56 @@ payload_files() {
 copy_src=()
 copy_rel=()
 conflicts=()
+unsafe=()
+unsafe_seen=" "
 identical=0
+
+# Checking the leaf is not enough. Every ancestor directory of a destination
+# has to be a real directory inside the target: a symlink at `.agents/skills`
+# would send the copy wherever it points (memory-bank/, say), and a regular
+# file standing where a directory belongs would fail `mkdir` partway through
+# the copy phase, after other files had already landed. Both are refused here,
+# before anything is written.
+note_unsafe() {
+  case "$unsafe_seen" in *" $1 "*) return 0 ;; esac
+  unsafe_seen="$unsafe_seen$1 "
+  unsafe+=("$1 — $2")
+}
+
+check_path_safety() {
+  local rel="$1" acc="" remainder="$1" seg abs
+  while [ -n "$remainder" ]; do
+    seg="${remainder%%/*}"
+    if [ "$seg" = "$remainder" ]; then remainder=""; else remainder="${remainder#*/}"; fi
+    if [ -z "$acc" ]; then acc="$seg"; else acc="$acc/$seg"; fi
+    abs="$target/$acc"
+    # -L first: -e follows the link, so a dangling one would look absent.
+    if [ -L "$abs" ]; then
+      note_unsafe "$acc" "is a symlink"
+      return 1
+    fi
+    if [ -e "$abs" ]; then
+      if [ -n "$remainder" ] && [ ! -d "$abs" ]; then
+        note_unsafe "$acc" "exists but is not a directory"
+        return 1
+      fi
+      if [ -z "$remainder" ] && [ ! -f "$abs" ]; then
+        note_unsafe "$acc" "exists but is not a regular file"
+        return 1
+      fi
+    fi
+  done
+  return 0
+}
 
 for p in "${packs[@]}"; do
   while IFS= read -r rel; do
     [ -n "$rel" ] || continue
     if is_protected "$rel"; then
       die "pack '$p' would write a protected path ($rel) — refusing"
+    fi
+    if ! check_path_safety "$rel"; then
+      continue
     fi
     src="$KIT_ROOT/packs/$p/$rel"
     dst="$target/$rel"
@@ -178,6 +231,16 @@ for p in "${packs[@]}"; do
   done < <(payload_files "$p")
 done
 
+if [ "${#unsafe[@]}" -gt 0 ]; then
+  printf 'UNSAFE PATH: %d destination path(s) in the target are not what the install needs:\n' "${#unsafe[@]}" >&2
+  for u in "${unsafe[@]}"; do printf '  %s\n' "$u" >&2; done
+  printf '\n' >&2
+  printf 'Nothing was written. A symlink or a file where a directory belongs would send\n' >&2
+  printf 'the copy somewhere it must not go, or strand it half done. Clear those paths\n' >&2
+  printf 'and run this again.\n' >&2
+  exit 1
+fi
+
 if [ "${#conflicts[@]}" -gt 0 ]; then
   printf 'CONFLICT: %d file(s) already exist in the target and differ from the pack:\n' "${#conflicts[@]}" >&2
   for c in "${conflicts[@]}"; do printf '  %s\n' "$c" >&2; done
@@ -187,9 +250,33 @@ if [ "${#conflicts[@]}" -gt 0 ]; then
   exit 1
 fi
 
+# The receipt records what this installer put here. It is a receipt, never an
+# authority over Serel Memory's own `.serel-memory.json` anchor. Unknown keys
+# in an existing receipt are preserved.
+#
+# It is validated and the merged result computed HERE, before the copy phase.
+# A receipt that parses as JSON can still be the wrong shape ({"packs":"writing"}
+# parses fine), and finding that out after the payload had been copied would
+# leave exactly the half-installed state this installer promises never to make.
 receipt="$target/.serel-kit.json"
+packs_json="$(printf '%s\n' "${packs[@]}" | jq -R . | jq -s .)"
+tmp_receipt="$receipt.tmp.$$"
+trap 'rm -f "$tmp_receipt"' EXIT
+
 if [ -e "$receipt" ]; then
-  jq -e . "$receipt" >/dev/null 2>&1 || die "existing $receipt is not valid JSON — fix or remove it; nothing was written"
+  [ -f "$receipt" ] || die "$receipt exists but is not a regular file; nothing was written"
+  jq -e 'type == "object"
+         and ((has("packs") | not) or (.packs | type == "array" and all(.[]; type == "string")))
+         and ((has("kit") | not) or (.kit | type == "string"))' \
+    "$receipt" >/dev/null 2>&1 ||
+    die "existing $receipt is not a Serel Kit receipt (expected an object with an optional string 'kit' and an optional array-of-strings 'packs') — fix or remove it; nothing was written"
+  jq --arg kit "$KIT_VERSION" --argjson added "$packs_json" \
+    '.kit = $kit | .packs = (((.packs // []) + $added) | unique)' "$receipt" >"$tmp_receipt" ||
+    die "could not merge $receipt; nothing was written"
+else
+  jq -n --arg kit "$KIT_VERSION" --argjson added "$packs_json" \
+    '{kit: $kit, packs: ($added | unique)}' >"$tmp_receipt" ||
+    die "could not build $receipt; nothing was written"
 fi
 
 # --- write -------------------------------------------------------------------
@@ -204,19 +291,13 @@ if [ "${#copy_rel[@]}" -gt 0 ]; then
   done
 fi
 
-# The receipt records what this installer put here. It is a receipt, never an
-# authority over Serel Memory's own `.serel-memory.json` anchor. Unknown keys
-# in an existing receipt are preserved.
-packs_json="$(printf '%s\n' "${packs[@]}" | jq -R . | jq -s .)"
-tmp_receipt="$receipt.tmp.$$"
-if [ -e "$receipt" ]; then
-  jq --arg kit "$KIT_VERSION" --argjson added "$packs_json" \
-    '.kit = $kit | .packs = (((.packs // []) + $added) | unique)' "$receipt" >"$tmp_receipt"
+# A re-run that changes nothing changes the receipt's bytes to the same bytes.
+# Don't rewrite the file for that — "changes nothing" should mean the inode too.
+if [ -e "$receipt" ] && cmp -s "$tmp_receipt" "$receipt"; then
+  rm -f "$tmp_receipt"
 else
-  jq -n --arg kit "$KIT_VERSION" --argjson added "$packs_json" \
-    '{kit: $kit, packs: ($added | unique)}' >"$tmp_receipt"
+  mv "$tmp_receipt" "$receipt"
 fi
-mv "$tmp_receipt" "$receipt"
 
 printf 'Serel Kit %s -> %s\n' "$KIT_VERSION" "$target"
 printf '  packs:     %s\n' "$(printf '%s ' "${packs[@]}" | sed 's/ $//')"
