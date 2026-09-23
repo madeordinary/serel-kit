@@ -308,8 +308,9 @@ legacy_baseline() {
   [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.-][A-Za-z0-9.-]+)?$ ]] ||
     die "pack '$pack' has no usable recorded version; cannot establish its baseline"
   root="$(git -C "$KIT_ROOT" rev-parse --show-toplevel 2>/dev/null || true)"
-  [ -n "$root" ] && [ "$(cd "$root" && pwd -P)" = "$(cd "$KIT_ROOT" && pwd -P)" ] ||
+  if [ -z "$root" ] || [ "$(cd "$root" && pwd -P)" != "$(cd "$KIT_ROOT" && pwd -P)" ]; then
     die "legacy upgrades need the original Kit git checkout with tag v$version"
+  fi
   commit="$(git -C "$KIT_ROOT" rev-parse --verify "refs/tags/v$version^{commit}" 2>/dev/null)" ||
     die "baseline tag v$version is unavailable locally; obtain that Kit tag, then retry (no files written)"
   git -C "$KIT_ROOT" ls-tree -r "$commit" -- "packs/$pack/.claude" "packs/$pack/.agents" >"$work/tree"
@@ -347,8 +348,9 @@ for p in "${packs[@]}"; do
   fi
   # Reject links (including linked directories) and special files before find
   # can silently omit them. The trusted source is then copied into staging.
-  [ ! -L "$KIT_ROOT/packs" ] && [ ! -L "$KIT_ROOT/packs/$p" ] ||
+  if [ -L "$KIT_ROOT/packs" ] || [ -L "$KIT_ROOT/packs/$p" ]; then
     die "unsafe source pack: $p"
+  fi
   find "$KIT_ROOT/packs/$p/.claude" "$KIT_ROOT/packs/$p/.agents" ! -type d ! -type f >"$work/special"
   [ ! -s "$work/special" ] || die "pack '$p' contains a symlink or special file"
   (cd "$KIT_ROOT/packs/$p" && find .claude .agents -type f | sort) >"$work/payload"
