@@ -49,7 +49,8 @@ with a link to Memory's own install instructions. It never writes to
 
 ## Requirements
 
-- `bash`, `git`, and `jq` to run the installer.
+- `bash` (3.2 or newer), `git`, `jq`, and `sha256sum` or `shasum` to run
+  the installer. macOS includes `shasum`.
 - A git repository to install into. The target is its **repository root**,
   not a subdirectory.
 - Claude Code or Codex to run the workflows.
@@ -80,13 +81,67 @@ What the installer does:
 - Checks the complete payload against your repo **before** writing anything.
   A file that is already identical is skipped. A file that exists and differs
   is a conflict: the run stops, lists the conflicts, and writes nothing. It
-  never overwrites, and it never leaves a half-installed pack behind.
+  never overwrites during a normal install.
 - Writes `.serel-kit.json` last — a receipt saying which version installed
-  which packs. It is a receipt, not a config file, and it has no authority over
+  which packs, with per-pack versions and upstream file hashes. It is a
+  receipt, not a config file, and it has no authority over
   Serel Memory's `.serel-memory.json` anchor. Unknown keys in an existing
   receipt are preserved.
 - Running it again with the same packs changes nothing and exits 0. Adding a
   pack adds only that pack.
+
+## Upgrade installed packs
+
+From a newer Kit checkout, preview selected installed packs:
+
+```bash
+bash serel-kit/install.sh /path/to/your-repo --packs writing --upgrade
+```
+
+The preview lists every file and shows diffs for additions, updates and
+conflicts. It writes nothing to your project. Apply a conflict-free plan with:
+
+```bash
+bash serel-kit/install.sh /path/to/your-repo --packs writing --upgrade --apply
+```
+
+The installer compares the recorded upstream bytes, your current file, and
+the incoming file:
+
+| Situation | Result |
+|-----------|--------|
+| Your file already matches incoming | Skip it |
+| Only upstream changed | Update it |
+| Only you changed it, including `RULES.md` | Keep your version |
+| Both changed it differently | Stop the entire selected upgrade |
+| A new upstream file has no local counterpart | Add it |
+| A managed file was deleted locally | Stop; do not recreate it |
+| Upstream retired a file | Leave it as-is and stop managing it |
+
+A different local file at a new upstream path is also a conflict. Nothing is
+deleted. Unselected packs and unknown receipt metadata are preserved. Stored
+hashes always describe upstream bytes, so keeping your edited `RULES.md` does
+not turn your edits into the next upstream baseline.
+
+There is no force option or automatic text merge. For a conflict, save your
+local file outside the managed paths and compare it with the corresponding
+file under `serel-kit/packs/<pack>/`. Put the incoming version at the conflict
+path, rerun the upgrade, then reapply the customizations you want to keep.
+A manually merged version that differs from both inputs remains a conflict
+until the baseline has advanced this way.
+
+Old v0.1 receipts record only a version. Their first upgrade needs that exact
+`v<version>` tag in the local Kit checkout to reconstruct the original payload.
+If it is missing, the installer stops and asks you to obtain it; it never
+fetches or guesses a baseline. Modern receipts carry hashes and need no tag.
+
+Use one writer at a time and keep project changes in version control. Before
+applying, the installer stages incoming bytes, checks destinations and the
+receipt again, and rejects symlinks, hard links and invalid paths. It writes
+the receipt last and rolls back ordinary copy failures, retaining recovery
+backups if an apply fails. This is not a crash-atomic transaction; interruption
+by a crash, concurrent writers, or an unrecoverable disk failure can still
+require manual recovery. Repeating a successful upgrade changes nothing.
 
 ## The packs
 
@@ -123,10 +178,11 @@ Run them from the Kit:
 shellcheck install.sh tests/*.sh
 bash tests/check-packs.sh
 bash tests/smoke-install.sh
+bash tests/smoke-upgrade.sh
 npx --yes markdownlint-cli2 "**/*.md"
 ```
 
-**The automated tests prove two things: installation, and adapter pairing.**
+**The automated tests cover installation, upgrades, and adapter pairing.**
 `check-packs.sh` asserts every pack ships both adapters plus the Codex
 manifest, that every resource a workflow points at travels with it, and that
 neither adapter shells out to its own CLI. `smoke-install.sh` installs the
@@ -151,15 +207,6 @@ kind of answer is something a person has to check, once, by running both. Each
 pack's README ends with an acceptance exercise for exactly that: the prompt to
 type, the shape of the reply to expect, and what should exist on disk
 afterwards. Do it after you install, and again when you edit the prompts.
-
-## Upgrading
-
-Manual in v0.1. To take a newer version of a pack, pull the Kit, delete the
-pack's files from your repo, and install again. The installer will not
-overwrite them for you — that is the same rule that protects your local edits.
-
-Your edits are the point. A workflow you changed is worth more than the one
-that shipped.
 
 ## Credits
 
