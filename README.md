@@ -175,12 +175,25 @@ a failure. A map never replaces running the tests.
 Run them from the Kit:
 
 ```bash
-shellcheck install.sh tests/*.sh
-bash tests/check-packs.sh
-bash tests/smoke-install.sh
-bash tests/smoke-upgrade.sh
-npx --yes markdownlint-cli2 "**/*.md"
+bash tests/ci.sh           # ShellCheck, every check/smoke suite, Markdown lint
+bash tests/ci.sh checks    # ShellCheck and Bash suites only
+bash tests/ci.sh docs      # Markdown lint only
 ```
+
+GitHub runs the same commands. Use a full Git checkout with release tags,
+Bash, `jq`, and the Node version in `.github/ci/node-version` with its bundled
+npm. The runner uses ShellCheck **0.11.0**, downloading and verifying an
+official Linux/macOS Intel/ARM binary in a temporary directory if the
+installed version differs. That bootstrap needs `curl`, `tar`, and `shasum`.
+Markdown lint installs **0.23.3** and the dependencies in
+`.github/ci/package-lock.json` into a temporary directory. Downloads require
+network access and fail if unavailable; nothing is installed globally or left
+in the repository. These are maintainer tools, not pack dependencies.
+
+Update `.github/ci/shellcheck.sh` and its official archive checksums together,
+the Markdown manifest/lockfile from `.github/ci/`, and
+`.github/ci/node-version` for Node. Action revisions are pinned in the workflow.
+Rerun the preflight and GitHub checks when changing pins.
 
 **The automated tests cover installation, upgrades, and adapter pairing.**
 `check-packs.sh` asserts every pack ships both adapters plus the Codex
@@ -199,7 +212,22 @@ test looks for `$SEREL_MEMORY_REPO` first, then a sibling `../memory` or
 `../serel-memory`. Without one it runs the no-Memory cases, prints
 `smoke-install PARTIAL` and **exits non-zero**, so a partial run can never read
 as a pass. Set `SEREL_KIT_ALLOW_PARTIAL=1` to accept a partial run locally. CI
-checks Memory out and requires all four cases.
+uses the preflight, which refuses partial results and requires all four cases.
+
+The preflight builds its Memory fixture at the exact commit in
+`.github/ci/memory-ref` (currently the AGENTS-only template and memory-update
+reconciliation change). It first looks for that commit in `$SEREL_MEMORY_REPO`
+or a sibling `../memory` or `../serel-memory`; otherwise it fetches from GitHub.
+It checks out only the pinned commit in a temporary directory and never
+changes the source checkout. `SEREL_KIT_ALLOW_PARTIAL` cannot weaken this run.
+Individual smoke tests remain available for exploring other Memory versions.
+
+When adopting a new Memory release, the Kit maintainer must update
+`.github/ci/memory-ref` to its full commit SHA in a reviewed change and run
+the preflight and GitHub checks. This pin records tested compatibility;
+a green run does not claim compatibility with every newer Memory commit.
+The Memory integration fixture reads the committed, pinned tree; the Kit
+installer and pack checks exercise the working tree.
 
 **They do not prove that a workflow behaves the same way in both CLIs.** No automated test
 here runs Claude Code or Codex. Whether `/polish` and `$polish` produce the same

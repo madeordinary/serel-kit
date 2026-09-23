@@ -14,45 +14,26 @@ jobs:
     # that every pack ships both adapters. They are meaningless in a repo that
     # merely installed a pack, so the job self-disables outside this repository.
     if: github.repository == 'madeordinary/serel-kit'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
 
-      - name: Make scripts executable
-        run: chmod +x install.sh tests/*.sh
-
-      - name: ShellCheck the installer and tests
-        run: shellcheck install.sh tests/*.sh
-
-      - name: Packs ship both adapters, with their resources
-        run: bash tests/check-packs.sh
-
-      # The install smoke test scaffolds a Serel Memory project from this
-      # checkout and runs Memory's own framework checks inside it. It is
-      # required: three of the four smoke cases need it, and a run that quietly
-      # skipped them would be a green tick over an untested installer.
-      - name: Check out Serel Memory for the install smoke test
-        uses: actions/checkout@v7
-        with:
-          repository: madeordinary/serel-memory
-          path: .serel-memory-checkout
-
-      - name: Packs install, refuse, converge, and never overwrite
-        env:
-          SEREL_MEMORY_REPO: ${{ github.workspace }}/.serel-memory-checkout
-        run: bash tests/smoke-install.sh
-
-      - name: Upgrade previews, local edits, legacy baselines, and rollback
-        run: bash tests/smoke-upgrade.sh
+      - name: Pinned ShellCheck and all pack suites
+        run: bash tests/ci.sh checks
 
   docs:
     # Markdown hygiene for the prompt files themselves. Same repo guard.
     if: github.repository == 'madeordinary/serel-kit'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      - name: Markdown lint
-        run: npx --yes markdownlint-cli2 "**/*.md"
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version-file: .github/ci/node-version
+          package-manager-cache: false
+
+      - name: Locked Markdown lint
+        run: bash tests/ci.sh docs
