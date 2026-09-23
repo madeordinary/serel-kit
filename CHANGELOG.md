@@ -7,6 +7,27 @@ reaches 1.0.
 
 ## [Unreleased]
 
+### Added
+
+- Preview-first pack upgrades: `--upgrade` reports file decisions and diffs;
+  `--upgrade --apply` applies a conflict-free selection. Per-pack versions and
+  upstream SHA-256 manifests preserve local-only edits, reject conflicting
+  edits and local deletions, and leave retired files on disk. Legacy receipts
+  use the exact locally available release tag; no fetch or guessed baseline.
+- Destination rechecks, staged payloads, and rollback for ordinary write
+  failures, with recovery backups retained after failed applies. The receipt
+  is written last. Concurrent writers and crash-atomic recovery are not supported.
+- Upgrade smoke coverage using a synthetic changed upstream, including local
+  customizations, independent pack versions, preview/refusal snapshots, path
+  safety, and injected payload/receipt copy failures.
+
+### Fixed
+
+- Reject symlinked receipts and multiply linked destination files before
+  installation or upgrades can write through them.
+- Install smoke checks accept projects without `CLAUDE.md` and still protect
+  a project's custom copy when one exists.
+
 ## [0.1.0] — 2026-09-09
 
 First release. Two workflow packs and an installer that puts them into a git

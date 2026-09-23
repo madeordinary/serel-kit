@@ -17,6 +17,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
       - name: Make scripts executable
         run: chmod +x install.sh tests/*.sh
@@ -41,6 +43,9 @@ jobs:
         env:
           SEREL_MEMORY_REPO: ${{ github.workspace }}/.serel-memory-checkout
         run: bash tests/smoke-install.sh
+
+      - name: Upgrade previews, local edits, legacy baselines, and rollback
+        run: bash tests/smoke-upgrade.sh
 
   docs:
     # Markdown hygiene for the prompt files themselves. Same repo guard.

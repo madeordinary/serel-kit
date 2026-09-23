@@ -62,8 +62,12 @@ snapshot() {
 
 # The files Serel Kit promises never to touch.
 guarded() {
-  ( cd "$1" && find memory-bank .rules .serel-memory.json AGENTS.md CLAUDE.md \
-      -type f -exec cksum {} + | sort )
+  (
+    cd "$1" || exit 1
+    for path in memory-bank .rules .serel-memory.json AGENTS.md CLAUDE.md; do
+      if [ -e "$path" ]; then find "$path" -type f -exec cksum {} +; fi
+    done | sort
+  )
 }
 
 expect_files() {
