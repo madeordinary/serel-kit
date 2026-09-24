@@ -1,6 +1,6 @@
 # Serel Kit
 
-![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg) ![Works with Claude Code + Codex](https://img.shields.io/badge/works%20with-Claude%20Code%20%2B%20Codex-5436DA) ![Version 0.1.0](https://img.shields.io/badge/version-0.1.0-blue)
+![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg) ![Works with Claude Code + Codex](https://img.shields.io/badge/works%20with-Claude%20Code%20%2B%20Codex-5436DA) ![Version 0.2.0](https://img.shields.io/badge/version-0.2.0-blue)
 
 Optional workflow packs for AI coding agents, built to fit
 [Serel Memory](https://github.com/madeordinary/serel-memory).
@@ -215,8 +215,7 @@ as a pass. Set `SEREL_KIT_ALLOW_PARTIAL=1` to accept a partial run locally. CI
 uses the preflight, which refuses partial results and requires all four cases.
 
 The preflight builds its Memory fixture at the exact commit in
-`.github/ci/memory-ref` (currently the AGENTS-only template and memory-update
-reconciliation change). It first looks for that commit in `$SEREL_MEMORY_REPO`
+`.github/ci/memory-ref` (currently the Serel Memory 0.6.0 release). It first looks for that commit in `$SEREL_MEMORY_REPO`
 or a sibling `../memory` or `../serel-memory`; otherwise it fetches from GitHub.
 It checks out only the pinned commit in a temporary directory and never
 changes the source checkout. `SEREL_KIT_ALLOW_PARTIAL` cannot weaken this run.
