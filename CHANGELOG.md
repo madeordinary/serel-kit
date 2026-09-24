@@ -7,6 +7,21 @@ reaches 1.0.
 
 ## [Unreleased]
 
+No changes yet.
+
+## [0.2.0] — 2026-09-23
+
+Safe upgrades. 0.1.0 could install packs but not upgrade them; this release
+adds a preview-first upgrade that keeps your local edits. Tested against Serel
+Memory 0.6.0.
+
+Upgrade from 0.1.0: `git pull` your Kit checkout and keep its `v0.1.0` tag,
+because a 0.1.0 receipt takes its baseline from that tag. Preview with
+`install.sh <repo> --packs <names> --upgrade`, then apply with
+`--upgrade --apply`. Nothing is written until you apply, and a conflict stops
+the whole selection. The packs themselves are unchanged since 0.1.0, so this
+first upgrade only rewrites the receipt with per-pack baselines.
+
 ### Added
 
 - Preview-first pack upgrades: `--upgrade` reports file decisions and diffs;
@@ -20,6 +35,15 @@ reaches 1.0.
 - Upgrade smoke coverage using a synthetic changed upstream, including local
   customizations, independent pack versions, preview/refusal snapshots, path
   safety, and injected payload/receipt copy failures.
+
+### Changed
+
+- The installer now needs `sha256sum` or `shasum` for every run, not only
+  upgrades; macOS includes `shasum`.
+- Maintainers run `bash tests/ci.sh`, the same preflight GitHub Actions runs:
+  pinned ShellCheck, every pack suite, and locked Markdown lint. Install tests
+  use the exact Serel Memory commit in `.github/ci/memory-ref`, now the Serel
+  Memory 0.6.0 release.
 
 ### Fixed
 
@@ -106,5 +130,6 @@ installs, upgrades, or reconfigures Serel Memory.
 - Upgrades are manual. To take a newer pack, delete the pack's files and
   install again; the installer will not overwrite them.
 
-[Unreleased]: https://github.com/madeordinary/serel-kit/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/madeordinary/serel-kit/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/madeordinary/serel-kit/releases/tag/v0.2.0
 [0.1.0]: https://github.com/madeordinary/serel-kit/releases/tag/v0.1.0

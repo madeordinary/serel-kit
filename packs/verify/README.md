@@ -69,7 +69,7 @@ Installs four files:
 
 ## How reviews find these files
 
-There is no hook into `/ship` or `/review` in v0.1, on purpose. Serel Memory
+There is no hook into `/ship` or `/review`, on purpose. Serel Memory
 already has a convention for this: optional docs under `memory-bank/` are read
 when the current task touches that topic. A map at
 `memory-bank/verification/checkout.md` is exactly that — a review of the

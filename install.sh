@@ -11,7 +11,7 @@
 # Requires: bash, git, jq, and sha256sum or shasum.
 set -euo pipefail
 
-KIT_VERSION="0.1.0"
+KIT_VERSION="0.2.0"
 KIT_ROOT="$(cd "$(dirname "$0")" && pwd)"
 MEMORY_INSTALL_URL="https://github.com/madeordinary/serel-memory#install"
 
