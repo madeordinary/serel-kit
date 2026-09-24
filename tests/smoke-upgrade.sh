@@ -58,7 +58,9 @@ base="$tmp/base"
 incoming="$tmp/incoming"
 git clone --quiet --no-hardlinks "$KIT" "$base"
 git -C "$base" checkout --quiet v0.1.0
-cp "$KIT/install.sh" "$base/install.sh"
+# The base installs v0.1.0 bytes, so it records that version whatever the
+# current release is: legacy receipts resolve their baseline from that tag.
+sed 's/^KIT_VERSION=".*"$/KIT_VERSION="0.1.0"/' "$KIT/install.sh" >"$base/install.sh"
 git clone --quiet --no-hardlinks "$KIT" "$incoming"
 git -C "$incoming" checkout --quiet v0.1.0
 sed 's/^KIT_VERSION=".*"$/KIT_VERSION="0.2.0"/' "$KIT/install.sh" >"$incoming/install.sh"
