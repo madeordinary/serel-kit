@@ -7,7 +7,63 @@ reaches 1.0.
 
 ## [Unreleased]
 
-No changes yet.
+Guided setup and local installs. `--local` is available in this checkout and
+planned for the next release; the v0.2.0 installer does not have it.
+
+### Added
+
+- A copyable guided setup prompt in the README. The agent inspects the
+  repository without changing it and asks at most four questions, one at a
+  time, skipping any it can already answer: project stage, capabilities,
+  agents, and Git visibility. It recommends the fewest supported packs, shows
+  exact paths and what Git will share, and waits for approval. Serel Memory
+  setup is handed to Memory's `docs/serel-setup.md` with the answers already
+  given. The Kit never installs Memory. A table shows what each pack needs
+  and who owns each path.
+- `install.sh --local` keeps the Kit files and receipt out of Git. It gives
+  each one an exact-path line in the repository's Git-resolved `info/exclude`,
+  which a linked worktree shares with its repository. It previews until
+  `--apply`. It adds the lines before any file, then confirms with
+  `git check-ignore` that Git ignores every Kit path. If an ordinary write
+  fails, it removes the lines along with the files and receipt. Existing
+  exclude lines are kept and never duplicated. `.claude/` and `.agents/` are
+  never ignored wholesale.
+- The receipt records `"local": true`. Reruns, added packs, and upgrades stay
+  local without `--local`.
+- `tests/smoke-local.sh` covers local installs against real repositories:
+  - previews and refusals write nothing, `.git` included
+  - the exclude file gains exactly the Kit's lines
+  - unrelated staged, unstaged, and untracked work and existing ignore lines
+    are preserved
+  - reruns converge, and added packs and upgrades inherit local mode
+  - linked worktrees use the shared exclude file
+  - tracked and case-variant collisions, re-including ignore rules,
+    shared-to-local switches, malformed receipts, and linked exclude files are
+    refused
+  - injected failures roll back files, receipt, and exclusions
+  - shared Kit works beside a local memory bank
+
+### Changed
+
+- `--apply` also applies a local install. Without `--upgrade` it needs local
+  mode, from `--local` or the receipt. Shared installs and upgrades behave as
+  in 0.2.0. Because that check reads the receipt, a bare `--apply` is now
+  refused after the pack and Memory checks, still with nothing written.
+
+### Fixed
+
+- A malformed receipt, or one holding more than one JSON document, is refused
+  before anything is written. So is an existing Kit path whose letter case
+  differs from the Kit's, such as `.Claude/`, which a case-insensitive
+  filesystem would otherwise open in place of `.claude/`.
+
+### Known limits
+
+- Local means not committed. It is not access control or a backup. Excluded
+  files do not travel with a clone, and `git clean -x` deletes them.
+- The installer never switches an installation between shared and local, and
+  never removes files from Git. A Kit path Git tracks, or one an ignore rule
+  re-includes, is refused.
 
 ## [0.2.0] — 2026-09-23
 

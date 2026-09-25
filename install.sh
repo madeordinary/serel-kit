@@ -6,7 +6,8 @@
 # Memory — it only detects Memory and refuses packs that need it. It never
 # overwrites an existing file during installation; upgrades require --apply.
 # It writes nothing outside `.claude/`,
-# `.agents/`, and the `.serel-kit.json` receipt.
+# `.agents/`, and the `.serel-kit.json` receipt, except that a local install
+# appends exact Kit paths to the repository's Git-resolved `info/exclude`.
 #
 # Requires: bash, git, jq, and sha256sum or shasum.
 set -euo pipefail
@@ -14,6 +15,7 @@ set -euo pipefail
 KIT_VERSION="0.2.0"
 KIT_ROOT="$(cd "$(dirname "$0")" && pwd)"
 MEMORY_INSTALL_URL="https://github.com/madeordinary/serel-memory#install"
+EXCLUDE_HEADER="# Serel Kit local install: exact paths recorded in .serel-kit.json"
 
 die() { printf 'error: %s\n' "$*" >&2; exit 1; }
 
@@ -55,6 +57,7 @@ list_packs() {
 usage() {
   cat <<'USAGE_END'
 Usage: install.sh <target-repo> --packs <pack>[,<pack>...]
+       install.sh <target-repo> --packs <pack>[,<pack>...] --local [--apply]
        install.sh <target-repo> --packs <pack>[,<pack>...] --upgrade [--apply]
 
 Installs Serel Kit workflow packs into a git repository. Both adapters travel
@@ -62,8 +65,10 @@ together: a Claude Code slash command and a Codex skill.
 
 Options:
   --packs <list>   comma-separated pack names (required)
+  --local          preview an install kept out of Git: each Kit file and the
+                   receipt get an exact-path line in Git's info/exclude
   --upgrade        preview an upgrade using the recorded upstream baseline
-  --apply          apply a conflict-free upgrade (requires --upgrade)
+  --apply          apply a local install or a conflict-free upgrade
   --list           list the available packs and exit
   -h, --help       show this text
 
@@ -72,6 +77,9 @@ Rules:
   - During installation an existing file is never overwritten. A file that differs from the pack
     is a conflict: the run stops and writes nothing.
   - Re-running with the same packs changes nothing and exits 0.
+  - The receipt records a local install. Later runs stay local and preview
+    until --apply, with or without --local. A shared install never becomes
+    local, and a Kit path Git tracks is refused.
 USAGE_END
 }
 
@@ -81,6 +89,7 @@ target=""
 packs_arg=""
 upgrade=0
 apply=0
+local_flag=0
 
 while [ "$#" -gt 0 ]; do
   case "$1" in
@@ -92,6 +101,7 @@ while [ "$#" -gt 0 ]; do
     --packs=*) packs_arg="${1#--packs=}"; shift ;;
     --upgrade) upgrade=1; shift ;;
     --apply) apply=1; shift ;;
+    --local) local_flag=1; shift ;;
     -*) die "unknown option: $1" ;;
     *)
       [ -z "$target" ] || die "only one target is allowed (got '$target' and '$1')"
@@ -101,7 +111,6 @@ done
 
 if [ -z "$target" ]; then usage >&2; exit 1; fi
 [ -n "$packs_arg" ] || die "--packs is required (try: install.sh <repo> --packs writing)"
-[ "$apply" -eq 0 ] || [ "$upgrade" -eq 1 ] || die "--apply requires --upgrade"
 command -v git >/dev/null 2>&1 || die "git is required"
 command -v jq >/dev/null 2>&1 || die "jq is required (the installation receipt is JSON)"
 
@@ -193,7 +202,7 @@ valid_payload_path() {
 }
 
 check_path_safety() {
-  local rest="$1" acc="" seg abs
+  local rest="$1" acc="" seg abs parent="$target"
   while [ -n "$rest" ]; do
     seg="${rest%%/*}"
     if [ "$seg" = "$rest" ]; then rest=""; else rest="${rest#*/}"; fi
@@ -201,6 +210,10 @@ check_path_safety() {
     abs="$target/$acc"
     [ ! -L "$abs" ] || die "UNSAFE PATH: $acc is a symlink; nothing was written"
     if [ -e "$abs" ]; then
+      # A case-insensitive filesystem opens .Claude for .claude, but Git sees
+      # the spelling on disk, which the receipt and exclusions would not name.
+      [ -n "$(find "$parent" -mindepth 1 -maxdepth 1 -name "$seg" -print)" ] ||
+        die "UNSAFE PATH: $acc exists with different letter case; nothing was written"
       if [ -n "$rest" ]; then
         [ -d "$abs" ] || die "UNSAFE PATH: $acc is not a directory; nothing was written"
       else
@@ -209,12 +222,14 @@ check_path_safety() {
           die "UNSAFE PATH: $acc has multiple hard links; nothing was written"
       fi
     fi
+    parent="$abs"
   done
 }
 
-current_hash() {
-  if [ -f "$target/$1" ]; then hash_file "$target/$1"; else printf 'absent\n'; fi
+hash_or_absent() {
+  if [ -f "$1" ]; then hash_file "$1"; else printf 'absent\n'; fi
 }
+current_hash() { hash_or_absent "$target/$1"; }
 
 work="$(mktemp -d)"
 write_rel=()
@@ -225,6 +240,12 @@ watch_rel=()
 watch_hash=()
 applying=0
 success=0
+# Local mode only: Git's exclude file, and what this run did to it.
+exclude_file=""
+exclude_dir=""
+exclude_touched=0
+exclude_dir_created=0
+new_exclusions=0
 
 # Roll back ordinary copy/mkdir failures. This is not a crash-atomic
 # transaction: run with one writer and keep project changes in version control.
@@ -246,6 +267,16 @@ cleanup() {
     for ((n = ${#created_dirs[@]} - 1; n >= 0; n--)); do
       rmdir "$target/${created_dirs[$n]}" 2>/dev/null
     done
+    # Exclusions went in before any file, so they come out after every file.
+    if [ "$exclude_touched" -eq 1 ]; then
+      if [ -f "$work/exclude-backup" ]; then
+        cp "$work/exclude-backup" "$exclude_file" ||
+          printf 'RESTORE FAILED: %s (backup: %s)\n' "$exclude_file" "$work/exclude-backup" >&2
+      else
+        rm -f "$exclude_file"
+      fi
+      if [ "$exclude_dir_created" -eq 1 ]; then rmdir "$exclude_dir" 2>/dev/null; fi
+    fi
   fi
   # Keep backups on failure so a failed restore remains recoverable.
   if [ "$applying" -eq 1 ] && [ "$success" -eq 0 ]; then
@@ -264,19 +295,23 @@ check_path_safety .serel-kit.json
 watch_rel+=(".serel-kit.json")
 watch_hash+=("$(current_hash .serel-kit.json)")
 if [ -f "$receipt" ]; then
-  jq -e '
+  # Slurp: exactly one document. Every later jq reads only its last result, so
+  # a second document appended to a valid receipt would silently replace it.
+  jq -e -s '
     def payload_path:
       (test("[^A-Za-z0-9_./-]") | not)
       and (startswith(".claude/commands/") or test("^\\.agents/skills/[^/]+/"))
       and (split("/") | all(.[]; . != "" and . != "." and . != ".."));
+    length == 1 and (.[0] |
     type == "object"
     and ((has("packs") | not) or (.packs | type == "array" and all(.[]; type == "string" and test("^[A-Za-z0-9_-]+\\z"))))
     and ((has("kit") | not) or (.kit | type == "string"))
+    and ((has("local") | not) or (.local | type == "boolean"))
     and ((has("installed") | not) or (.installed | type == "object" and all(to_entries[];
       (.key | test("^[A-Za-z0-9_-]+\\z")) and
       (.value | type == "object" and (.version | type == "string") and
         (.files == null or (.files | type == "object" and all(to_entries[];
-          (.key | payload_path) and (.value | type == "string" and test("^[0-9a-f]{64}\\z")))))))))
+          (.key | payload_path) and (.value | type == "string" and test("^[0-9a-f]{64}\\z"))))))))))
   ' "$receipt" >/dev/null 2>&1 || die "existing $receipt is not a valid Serel Kit receipt; nothing was written"
   cp "$receipt" "$work/receipt-old.json"
 else
@@ -286,6 +321,19 @@ jq -r '.installed // {} | .[].files // {} | keys[]' "$work/receipt-old.json" >"$
 while IFS= read -r rel; do
   valid_payload_path "$rel" || die "unsafe receipt path: $rel; nothing was written"
 done <"$work/recorded-paths"
+
+# Local mode belongs to the installation, not to one run: once recorded, every
+# later run keeps the Kit's files out of Git. A shared installation is never
+# converted, because an ignore rule cannot hide a file Git already tracks.
+local_mode="$local_flag"
+if jq -e '.local == true' "$work/receipt-old.json" >/dev/null; then
+  local_mode=1
+elif [ "$local_flag" -eq 1 ] &&
+  jq -e '((.packs // []) + (.installed // {} | keys)) | length > 0' "$work/receipt-old.json" >/dev/null; then
+  die "$receipt records a shared installation; --local cannot make it local. Nothing was written."
+fi
+[ "$apply" -eq 0 ] || [ "$upgrade" -eq 1 ] || [ "$local_mode" -eq 1 ] ||
+  die "--apply requires --upgrade or --local"
 
 # Freeze each legacy pack's old version before advancing the top-level
 # installer version. An unselected legacy pack must not acquire a new baseline.
@@ -327,7 +375,11 @@ legacy_baseline() {
 }
 
 printf 'Serel Kit %s -> %s\n' "$KIT_VERSION" "$target"
-if [ "$upgrade" -eq 1 ]; then printf 'Upgrade plan (no files written yet):\n'; fi
+if [ "$upgrade" -eq 1 ]; then
+  printf 'Upgrade plan (no files written yet):\n'
+elif [ "$local_mode" -eq 1 ]; then
+  printf 'Local install plan (no files written yet):\n'
+fi
 printf '{}\n' >"$work/owners.json"
 conflicts=0
 identical=0
@@ -427,14 +479,120 @@ done
 
 [ "$conflicts" -eq 0 ] || die "CONFLICT: $conflicts file(s); nothing was written. Back up and reconcile each local file with its source under $KIT_ROOT/packs, then retry. There is no force option."
 packs_json="$(printf '%s\n' "${packs[@]}" | jq -R . | jq -s .)"
-jq --arg kit "$KIT_VERSION" --argjson added "$packs_json" '
+jq --arg kit "$KIT_VERSION" --argjson added "$packs_json" --argjson local "$local_mode" '
   .kit = $kit | .packs = (((.packs // []) + $added) | unique)
+  | if $local == 1 then .local = true else . end
 ' "$work/receipt-new.json" >"$work/receipt-final.json"
 if [ ! -f "$receipt" ] || ! cmp -s "$receipt" "$work/receipt-final.json"; then
   write_rel+=(".serel-kit.json"); write_src+=("$work/receipt-final.json")
 fi
-if [ "$upgrade" -eq 1 ] && [ "$apply" -eq 0 ]; then
-  printf 'Preview only. %d file write(s), including any receipt update. Re-run with --upgrade --apply to apply this plan.\n' "${#write_rel[@]}"
+
+# --- local mode: Git exclusions ----------------------------------------------
+
+# Git resolves the file, so a linked worktree uses its repository's shared
+# info/exclude. Hold it to the same link rules as the payload.
+check_exclude_file() {
+  [ ! -L "$exclude_dir" ] || die "UNSAFE PATH: $exclude_dir is a symlink; nothing was written"
+  [ ! -e "$exclude_dir" ] || [ -d "$exclude_dir" ] ||
+    die "UNSAFE PATH: $exclude_dir is not a directory; nothing was written"
+  [ ! -L "$exclude_file" ] || die "UNSAFE PATH: $exclude_file is a symlink; nothing was written"
+  if [ -e "$exclude_file" ]; then
+    [ -f "$exclude_file" ] || die "UNSAFE PATH: $exclude_file is not a regular file; nothing was written"
+    [ -z "$(find "$exclude_file" -prune -links +1 -print)" ] ||
+      die "UNSAFE PATH: $exclude_file has multiple hard links; nothing was written"
+  fi
+}
+
+# git_ignores <path> [git options]: 0 if Git ignores the path, 1 if not.
+git_ignores() {
+  local path="$1" rc
+  shift
+  if git -C "$target" "$@" check-ignore -q -- "$path"; then return 0; else
+    rc=$?
+    [ "$rc" -eq 1 ] || die "could not check Git's ignore rules for $path"
+    return 1
+  fi
+}
+
+if [ "$local_mode" -eq 1 ]; then
+  exclude_file="$(git -C "$target" rev-parse --git-path info/exclude)" ||
+    die "could not resolve this repository's info/exclude"
+  case "$exclude_file" in /*) ;; *) exclude_file="$target/$exclude_file" ;; esac
+  exclude_dir="$(dirname "$exclude_file")"
+  check_exclude_file
+  exclude_hash="$(hash_or_absent "$exclude_file")"
+
+  # Every file of every recorded pack, plus the receipt: a rerun also repairs
+  # a deleted line. Exact anchored paths only, never .claude/ or .agents/.
+  { jq -r '.installed // {} | .[].files // {} | keys[]' "$work/receipt-final.json"
+    printf '.serel-kit.json\n'; } | LC_ALL=C sort -u >"$work/local-paths"
+  specs=()
+  while IFS= read -r rel; do
+    valid_payload_path "$rel" || [ "$rel" = .serel-kit.json ] || die "unsafe local path: $rel"
+    specs+=(":(icase)$rel")
+  done <"$work/local-paths"
+
+  # An ignore rule cannot hide a tracked file, so pretending would share it.
+  # icase: a case-insensitive filesystem resolves a case variant to our file.
+  git -C "$target" ls-files -z --cached -- "${specs[@]}" >"$work/tracked" ||
+    die "could not read the Git index"
+  if [ -s "$work/tracked" ]; then
+    tr '\0' '\n' <"$work/tracked" | while IFS= read -r rel; do printf '  %-10s %s\n' TRACKED "$rel"; done
+    die "TRACKED: Git tracks these Kit paths, so --local cannot keep them out of Git. The installer never removes files from Git. Nothing was written."
+  fi
+
+  printf 'Git exclusions in %s:\n' "$exclude_file"
+  : >"$work/exclude-lines"
+  : >"$work/exclude-sim"
+  while IFS= read -r rel; do
+    printf '/%s\n' "$rel" >>"$work/exclude-sim"
+    if [ -f "$exclude_file" ] && grep -qxF -- "/$rel" "$exclude_file"; then
+      printf '  %-10s /%s\n' PRESENT "$rel"
+    else
+      printf '  %-10s /%s\n' EXCLUDE "$rel"
+      printf '/%s\n' "$rel" >>"$work/exclude-lines"
+      new_exclusions=$((new_exclusions + 1))
+    fi
+  done <"$work/local-paths"
+
+  # Predict the result without writing: .gitignore files and info/exclude
+  # outrank core.excludesFile, so a negation there still shows up here.
+  unignored=0
+  while IFS= read -r rel; do
+    if ! git_ignores "$rel" -c core.excludesFile="$work/exclude-sim"; then
+      reason="$(git -C "$target" -c core.excludesFile="$work/exclude-sim" check-ignore -v -n -- "$rel" 2>/dev/null || true)"
+      printf '  %-10s %s (%s)\n' VISIBLE "$rel" "${reason%%$'\t'*}"
+      unignored=$((unignored + 1))
+    fi
+  done <"$work/local-paths"
+  [ "$unignored" -eq 0 ] ||
+    die "an ignore rule re-includes $unignored Kit path(s), so --local cannot keep them out of Git. Change that rule or install shared. Nothing was written."
+
+  : >"$work/exclude-add"
+  if [ "$new_exclusions" -gt 0 ]; then
+    last=""
+    if [ -s "$exclude_file" ]; then
+      if [ -n "$(tail -c 1 "$exclude_file")" ]; then printf '\n' >>"$work/exclude-add"; fi
+      last="$(awk 'NF { last = $0 } END { print last }' "$exclude_file")"
+    fi
+    # Continue Kit's block only when it is last, so Kit lines never land under
+    # another tool's comment, such as Serel Memory's.
+    if [ "$last" != "$EXCLUDE_HEADER" ] && ! grep -qxF -- "$last" "$work/exclude-sim"; then
+      printf '%s\n' "$EXCLUDE_HEADER" >>"$work/exclude-add"
+    fi
+    cat "$work/exclude-lines" >>"$work/exclude-add"
+  fi
+  printf 'Local only: not committed or pushed, not access control, not backed up; git clean -x deletes these files.\n'
+fi
+
+if [ "$apply" -eq 0 ] && { [ "$upgrade" -eq 1 ] || [ "$local_mode" -eq 1 ]; }; then
+  printf 'Preview only. %d file write(s), including any receipt update' "${#write_rel[@]}"
+  if [ "$local_mode" -eq 1 ]; then printf ', and %d new Git exclusion(s)' "$new_exclusions"; fi
+  if [ "$upgrade" -eq 1 ]; then
+    printf '. Re-run with --upgrade --apply to apply this plan.\n'
+  else
+    printf '. Re-run with --local --apply to apply this plan.\n'
+  fi
   exit 0
 fi
 
@@ -447,12 +605,20 @@ for ((i = 0; i < ${#watch_rel[@]}; i++)); do
   [ "$(current_hash "${watch_rel[$i]}")" = "${watch_hash[$i]}" ] ||
     die "target changed during planning: ${watch_rel[$i]}; retry (nothing written)"
 done
+if [ "$local_mode" -eq 1 ]; then
+  check_exclude_file
+  [ "$(hash_or_absent "$exclude_file")" = "$exclude_hash" ] ||
+    die "target changed during planning: $exclude_file; retry (nothing written)"
+fi
 mkdir "$work/backups"
 for ((i = 0; i < ${#write_rel[@]}; i++)); do
   if [ -f "$target/${write_rel[$i]}" ]; then
     cp -p "$target/${write_rel[$i]}" "$work/backups/$i"
   fi
 done
+if [ -s "$work/exclude-add" ] && [ -f "$exclude_file" ]; then
+  cp -p "$exclude_file" "$work/exclude-backup"
+fi
 
 ensure_parent() {
   local rest="$1" acc="" seg
@@ -467,6 +633,21 @@ ensure_parent() {
 }
 
 applying=1
+# Exclusions first, then Git's own answer, then files: a Kit file must never
+# exist here while Git would still offer to commit it.
+if [ "$local_mode" -eq 1 ]; then
+  if [ -s "$work/exclude-add" ]; then
+    if [ ! -d "$exclude_dir" ]; then
+      mkdir "$exclude_dir"
+      exclude_dir_created=1
+    fi
+    exclude_touched=1
+    cat "$work/exclude-add" >>"$exclude_file"
+  fi
+  while IFS= read -r rel; do
+    git_ignores "$rel" || die "Git does not ignore $rel after adding its exclusion"
+  done <"$work/local-paths"
+fi
 for ((i = 0; i < ${#write_rel[@]}; i++)); do
   rel="${write_rel[$i]}"
   ensure_parent "$rel"
@@ -484,5 +665,10 @@ for ((i = 0; i < ${#write_rel[@]}; i++)); do
 done
 success=1
 printf '  written: %d file(s), including any receipt update\n' "${#write_rel[@]}"
+if [ "$local_mode" -eq 1 ]; then
+  printf '  new Git exclusions: %d in %s\n' "$new_exclusions" "$exclude_file"
+fi
 printf '  identical: %d; kept local: %d; retired: %d\n' "$identical" "$kept" "$retired"
-if [ "${#write_rel[@]}" -eq 0 ]; then printf '  nothing to do — this target is already up to date.\n'; fi
+if [ "${#write_rel[@]}" -eq 0 ] && [ "$new_exclusions" -eq 0 ]; then
+  printf '  nothing to do — this target is already up to date.\n'
+fi
