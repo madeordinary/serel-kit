@@ -45,7 +45,39 @@ supplies optional workflows that follow those contracts.**
 In practice that means Serel Kit never installs, upgrades, or reconfigures
 Serel Memory. The installer detects Memory and refuses a pack that needs it,
 with a link to Memory's own install instructions. It never writes to
-`memory-bank/`, `.rules`, `.serel-memory.json`, `AGENTS.md`, or `CLAUDE.md`.
+`memory-bank/`, `.rules`, `.serel-memory.json`, `AGENTS.md`, or `CLAUDE.md`,
+and never adds, edits, or removes Memory's Git exclusions.
+
+## Guided setup
+
+Paste this into Claude Code or Codex at the root of your project. The agent
+looks before it asks, and nothing is installed until you approve the plan.
+
+```text
+Set up Serel Kit (https://github.com/madeordinary/serel-kit) in this repository.
+
+1. Inspect first and change nothing: the Git root and status, any .claude/ and .agents/ files, .serel-kit.json, and whether Serel Memory is present (.serel-memory.json, memory-bank/).
+2. Ask me one question at a time, at most four in all, and skip any whose answer you already know: the project's stage, the capabilities I want, which agents I use (Claude Code, Codex, or both), and whether Kit files should be shared through Git or kept local to this clone.
+3. Recommend the fewest supported packs that cover those capabilities. writing needs nothing else. verify needs Serel Memory to install and an initialized memory bank when it runs.
+4. If I want Serel Memory, or a chosen pack needs it, and it is missing, follow https://github.com/madeordinary/serel-memory/blob/main/docs/serel-setup.md. Do not install Memory silently or run its seeding interview from here.
+5. Carry every answer I already gave into whichever setup runs next, so no question is asked twice.
+6. Before writing anything, show me the exact install command, every path it writes, and what Git will share or keep local. For a local install, show me the installer's preview. Wait for my approval.
+```
+
+Answers carry forward: if the prompt hands off to Serel Memory's setup, that
+setup receives what you already said instead of asking again. The Git
+visibility answer is applied to Kit and Memory separately. Kit's `--local`
+covers only Kit's files, and Memory's setup decides for Memory's files.
+Mixing them is fine. You can share Kit skills through Git while keeping
+the memory bank local, or the reverse.
+
+| Piece | Owner | Paths | Needs | Shared or local |
+|-------|-------|-------|-------|-----------------|
+| writing pack: `/polish`, `$polish` | Serel Kit | `.claude/commands/polish.md`, `.agents/skills/polish/` | nothing | Kit's choice: shared by default, or `--local` |
+| verify pack: `/verify-map`, `$verify-map` | Serel Kit | `.claude/commands/verify-map.md`, `.agents/skills/verify-map/` | `.serel-memory.json` to install; an initialized bank to run | Kit's choice; the maps it writes live in the bank |
+| Kit receipt | Serel Kit | `.serel-kit.json` | nothing | same as the Kit files |
+| Bank, rules, anchor, agent instructions | Serel Memory | `memory-bank/`, `.rules`, `.serel-memory.json`, `AGENTS.md` | nothing from Kit | Memory's setup decides; Kit never changes it |
+| Existing Claude instructions | your project | `CLAUDE.md` | nothing | yours; both tools preserve it, and Memory never creates it |
 
 ## Requirements
 
@@ -83,12 +115,66 @@ What the installer does:
   is a conflict: the run stops, lists the conflicts, and writes nothing. It
   never overwrites during a normal install.
 - Writes `.serel-kit.json` last — a receipt saying which version installed
-  which packs, with per-pack versions and upstream file hashes. It is a
+  which packs, with per-pack versions and upstream file hashes, and whether
+  the installation is local. It is a
   receipt, not a config file, and it has no authority over
   Serel Memory's `.serel-memory.json` anchor. Unknown keys in an existing
   receipt are preserved.
 - Running it again with the same packs changes nothing and exits 0. Adding a
   pack adds only that pack.
+
+## Keep Kit files out of Git
+
+`--local` is available in this checkout and planned for the next release.
+The v0.2.0 installer does not have it.
+
+By default the installed files are ordinary untracked files. Commit them and
+everyone who clones the project gets the same workflows. To use Kit without
+committing it, preview a local install, then apply it:
+
+```bash
+bash serel-kit/install.sh /path/to/your-repo --packs writing --local
+bash serel-kit/install.sh /path/to/your-repo --packs writing --local --apply
+```
+
+The preview lists each file to add, then the exact-path line for each file and
+for the receipt that will go into Git's exclude file. It writes nothing.
+`--apply` adds the missing lines first. It then asks `git check-ignore` to
+confirm Git ignores every Kit path, copies the files, and writes the receipt
+last. If an ordinary write fails, the lines this run added are removed along
+with the files.
+
+- Only exact paths are excluded, such as `/.claude/commands/polish.md`.
+  The installer never ignores all of `.claude/` or `.agents/`, so your own
+  files there stay visible to Git. It only appends. It never edits or
+  reorders existing lines, including yours and Serel Memory's, and never adds
+  a line that is already there. Kit's lines always sit under a
+  `# Serel Kit local install` comment, never under another tool's comment.
+- The exclude file is the one Git resolves for the repository, usually
+  `.git/info/exclude`. In a linked worktree it lives in the main repository's
+  `.git`, so the lines apply to every worktree of that repository.
+- A Kit path that Git already tracks is refused, even when its bytes match,
+  because an ignore rule cannot hide a tracked file. A `.gitignore` or exclude
+  rule that re-includes a Kit path, such as `!/.claude/commands/polish.md`, is
+  refused too. The installer never removes files from Git and never edits
+  `.gitignore`.
+- The receipt records `"local": true`. Later runs, added packs, and upgrades
+  stay local without `--local`. They also preview until you add `--apply`.
+  Use this installer or a newer one for them: v0.2.0 does not read the key
+  and would add files without exclusions.
+- The installer never converts an installation. `--local` is refused when the
+  receipt records a shared installation. To share a local installation, delete
+  the Kit's lines from the exclude file and the `local` key from
+  `.serel-kit.json`, then commit the files. To make a shared installation
+  local, decide what happens to the committed copies yourself: removing them
+  from Git deletes them for everyone else on their next pull. Once Git tracks
+  no Kit path or receipt, delete `.serel-kit.json` and install with `--local`.
+
+Local means not committed. It is not access control: anyone who can read this
+clone can read the files. Excluded files do not travel with a clone, push,
+or fork, so other machines and collaborators do not get them. `git clean -x`,
+for example `git clean -fdx`, deletes them. Local-only does not mean backed
+up either, so keep your own copy of any `RULES.md` edits you care about.
 
 ## Upgrade installed packs
 
@@ -119,7 +205,8 @@ the incoming file:
 | Upstream retired a file | Leave it as-is and stop managing it |
 
 A different local file at a new upstream path is also a conflict. Nothing is
-deleted. Unselected packs and unknown receipt metadata are preserved. Stored
+deleted. A local installation stays local: new files get their exclusion
+lines before they are written. Unselected packs and unknown receipt metadata are preserved. Stored
 hashes always describe upstream bytes, so keeping your edited `RULES.md` does
 not turn your edits into the next upstream baseline.
 
@@ -195,7 +282,7 @@ the Markdown manifest/lockfile from `.github/ci/`, and
 `.github/ci/node-version` for Node. Action revisions are pinned in the workflow.
 Rerun the preflight and GitHub checks when changing pins.
 
-**The automated tests cover installation, upgrades, and adapter pairing.**
+**The automated tests cover installation, upgrades, local installs, and adapter pairing.**
 `check-packs.sh` asserts every pack ships both adapters plus the Codex
 manifest, that every resource a workflow points at travels with it, and that
 neither adapter shells out to its own CLI. `smoke-install.sh` installs the
@@ -206,6 +293,18 @@ stop the run with zero writes, that re-running converges, that a divergent
 local file stops the whole run before anything is copied, that the memory bank
 and anchor come out byte-identical, and that Serel Memory's own checks still
 pass afterwards.
+
+`smoke-local.sh` asks Git itself whether every Kit path is ignored after a
+local install, including in a linked worktree. It checks that the exclude file
+gains exactly the Kit's lines and that a preview or refusal changes nothing,
+`.git` included. It also checks that unrelated staged, unstaged, and untracked
+work survives. It refuses tracked Kit paths, re-including ignore rules,
+shared-to-local switches, malformed receipts, linked exclude files, and
+case-variant Kit paths on a case-insensitive filesystem. It
+covers inheritance of local mode by added packs and upgrades, rollback of
+files, receipt, and exclusions after injected failures, and shared Kit beside
+a local memory bank. It isolates itself from your global Git configuration
+and needs no Memory checkout.
 
 Three of those four smoke cases need a Serel Memory checkout to scaffold. The
 test looks for `$SEREL_MEMORY_REPO` first, then a sibling `../memory` or
