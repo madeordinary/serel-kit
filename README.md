@@ -79,6 +79,24 @@ the memory bank local, or the reverse.
 | Bank, rules, anchor, agent instructions | Serel Memory | `memory-bank/`, `.rules`, `.serel-memory.json`, `AGENTS.md` | nothing from Kit | Memory's setup decides; Kit never changes it |
 | Existing Claude instructions | your project | `CLAUDE.md` | nothing | yours; both tools preserve it, and Memory never creates it |
 
+## Update an existing installation
+
+Paste this into Claude Code or Codex opened at your project root.
+
+```text
+Upgrade this project's installed Serel Kit packs. This project is the target; a fresh clone only supplies the installer and instructions.
+
+1. Inspect first, changing nothing: Git status, .serel-kit.json (installed packs, version, local mode), and whether Serel Memory is present. If there is no receipt, stop; do not install Kit.
+2. Clone https://github.com/madeordinary/serel-kit into a temporary directory outside this project. Follow its README section "Upgrade installed packs", not an older checkout.
+3. Preview without --apply: use the fresh clone's install.sh with this project's root as the target, --packs followed by a comma-separated list of installed packs to upgrade, and --upgrade. Quote paths that contain spaces. Select only packs recorded in the receipt. Use only documented flags; local mode carries over from the receipt. Adding packs is a separate setup.
+4. Show me the installed version from the receipt, the proposed Kit commit and whether it is released, its benefits, diffs, and conflicts. Wait for approval; only rerun a conflict-free preview with --apply.
+5. Handle conflicts only through the README's steps, with my approval. Never guess a baseline or edit the receipt to get past a conflict. If an old receipt needs its exact v<version> tag, fetch it into the temporary clone only.
+6. Preserve my pack customizations, uncommitted work, and sharing choices. Do not commit or push. Leave Serel Memory's installation and version unchanged; if present, offer its update separately.
+```
+
+The installer has no force option or automatic merge: any conflict stops the
+whole upgrade until you resolve it.
+
 ## Requirements
 
 - `bash` (3.2 or newer), `git`, `jq`, and `sha256sum` or `shasum` to run
