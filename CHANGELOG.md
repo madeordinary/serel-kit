@@ -12,6 +12,10 @@ planned for the next release; the v0.2.0 installer does not have it.
 
 ### Added
 
+- A copyable update prompt for existing installations in the README. It
+  reads fresh upstream upgrade instructions, previews only installed packs,
+  preserves customizations and sharing choices, and requires approval before
+  applying a conflict-free upgrade. Memory updates remain separate.
 - A copyable guided setup prompt in the README. The agent inspects the
   repository without changing it and asks at most four questions, one at a
   time, skipping any it can already answer: project stage, capabilities,
