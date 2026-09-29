@@ -28,6 +28,17 @@ planned for the next release; the v0.2.0 installer does not have it.
   setup is handed to Memory's `docs/serel-setup.md` with the answers already
   given. The Kit never installs Memory. A table shows what each pack needs
   and who owns each path.
+- The setup and update prompts compare a project's existing commands and
+  skills with each pack's workflows by what they do, not only by path: the
+  installer never overwrites a file, but a project's own workflow under
+  another name could still do a pack's job and compete with it. Each overlap
+  is reported in the plan with the rules to keep and the primary entry
+  point; an unresolved one leaves that whole pack out, never part of it.
+  Keeping both is recorded in the project's docs, and retiring or merging a
+  project workflow needs its own approval. Name matches alone, and the
+  Claude/Codex pair of one workflow, are not overlaps. It is an agent-guided
+  review, not a guarantee, and writing-only setups still need no Memory. The
+  installer is unchanged.
 - `install.sh --local` keeps the Kit files and receipt out of Git. It gives
   each one an exact-path line in the repository's Git-resolved `info/exclude`,
   which a linked worktree shares with its repository. It previews until
