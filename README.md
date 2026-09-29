@@ -8,6 +8,17 @@ Optional workflow packs for AI coding agents, built to fit
 Created and maintained by [Gus Feliciano](https://github.com/gusfeliciano) through
 [Made Ordinary](https://github.com/madeordinary).
 
+## Do I need Memory first?
+
+It depends on the pack:
+
+- **writing** (`/polish`, `$polish`) needs nothing else — run [Guided setup](#guided-setup) below and use it.
+- **verify** (`/verify-map`, `$verify-map`) needs [Serel Memory](https://github.com/madeordinary/serel-memory) installed before it can be added, and an initialized memory bank when it runs.
+
+Want project continuity and Kit packs together? Use [Set up Memory and Kit together](https://github.com/madeordinary/serel-memory#set-up-memory-and-kit-together). One conversation handles new ideas and existing projects, preserves what is already installed, and helps you choose packs. You can keep Memory local while sharing Kit workflows with your team. Once setup is complete, skip Guided setup here.
+
+Already installed? [Update an existing installation](#update-an-existing-installation) below upgrades Kit's packs only. Memory has its own update prompt. When updating both, start with Memory; writing-only Kit use does not require Memory.
+
 ## What this is
 
 A workflow is a markdown file that tells a coding agent how to do one job:
