@@ -12,6 +12,10 @@ planned for the next release; the v0.2.0 installer does not have it.
 
 ### Added
 
+- README guidance for choosing Kit alone or setting up Memory + Kit in one
+  conversation, with links to Memory's setup chooser. It distinguishes
+  standalone writing from verification's Memory requirements and keeps
+  setup, tool upgrades, and project-memory updates separate.
 - A copyable update prompt for existing installations in the README. It
   reads fresh upstream upgrade instructions, previews only installed packs,
   preserves customizations and sharing choices, and requires approval before
