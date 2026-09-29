@@ -70,9 +70,10 @@ Set up Serel Kit (https://github.com/madeordinary/serel-kit) in this repository.
 1. Inspect first and change nothing: the Git root and status, any .claude/ and .agents/ files, .serel-kit.json, and whether Serel Memory is present (.serel-memory.json, memory-bank/).
 2. Ask me one question at a time, at most four in all, and skip any whose answer you already know: the project's stage, the capabilities I want, which agents I use (Claude Code, Codex, or both), and whether Kit files should be shared through Git or kept local to this clone.
 3. Recommend the fewest supported packs that cover those capabilities. writing needs nothing else. verify needs Serel Memory to install and an initialized memory bank when it runs.
-4. If I want Serel Memory, or a chosen pack needs it, and it is missing, follow https://github.com/madeordinary/serel-memory/blob/main/docs/serel-setup.md. Do not install Memory silently or run its seeding interview from here.
-5. Carry every answer I already gave into whichever setup runs next, so no question is asked twice.
-6. Before writing anything, show me the exact install command, every path it writes, and what Git will share or keep local. For a local install, show me the installer's preview. Wait for my approval.
+4. Compare my existing commands and skills, installed ones included, with each chosen pack's workflows by what they do, not by name. The Claude and Codex versions of one workflow are a pair, and a specialized workflow with a different job is not a duplicate. Report each overlap in the plan: both paths, my rules to keep, which should be primary, and whether to keep both (with the reason recorded in my workflow docs), migrate, or leave that pack out. An unresolved overlap leaves that whole pack out. Always install complete packs. Do not delete, disable, merge, or move my workflows unless I approve a migration with concrete diffs.
+5. If I want Serel Memory, or a chosen pack needs it, and it is missing, follow https://github.com/madeordinary/serel-memory/blob/main/docs/serel-setup.md. Do not install Memory silently or run its seeding interview from here.
+6. Carry every answer I already gave into whichever setup runs next, so no question is asked twice.
+7. Before writing anything, show me the exact install command, every path it writes, and what Git will share or keep local. For a local install, show me the installer's preview. Wait for my approval.
 ```
 
 Answers carry forward: if the prompt hands off to Serel Memory's setup, that
@@ -81,6 +82,32 @@ visibility answer is applied to Kit and Memory separately. Kit's `--local`
 covers only Kit's files, and Memory's setup decides for Memory's files.
 Mixing them is fine. You can share Kit skills through Git while keeping
 the memory bank local, or the reverse.
+
+The installer compares paths, not purposes. It never overwrites your files,
+but a workflow of yours under another name, say a `/proofread` of your own,
+can do the same job as a pack's and then compete with it. Both prompts ask
+the agent to compare workflows by what they do, pack by pack, and to leave a
+pack out until you choose. Keeping both is recorded in your own docs;
+retiring one of yours is a separate change you approve. This is an
+agent-guided review, not a guarantee, and it needs no Memory bank.
+
+Inspect the project's actual per-agent discovery inventory, including
+`.claude/commands/`, `.claude/skills/` and `.agents/skills/` when present,
+plus relevant global workflows already surfaced by the CLI; do not search
+unrelated private/global folders or modify global workflows. Same-path
+customizations still follow the installer's conflict rules.
+
+On setup reruns, inspect existing workflows even when no files would be
+added. Respect previously recorded coexistence while its purpose still
+applies. A migration proposal shows the custom behavior to preserve, exact
+diffs, retired files, updated references, and where originals remain
+recoverable. Preserve populated memory, decisions, and authorizations.
+Committed Git history preserves only committed bytes; back up uncommitted,
+untracked, or excluded originals before retirement, outside discoverable
+command/skill directories. Setup alone authorizes no retirement. Resolve
+choices in the existing plan approval without repeating answered questions.
+After approved changes, check each agent's entry points and current workflow
+docs against the installed files. These rules apply to upgrades too.
 
 | Piece | Owner | Paths | Needs | Shared or local |
 |-------|-------|-------|-------|-----------------|
@@ -100,7 +127,7 @@ Upgrade this project's installed Serel Kit packs. This project is the target; a 
 1. Inspect first, changing nothing: Git status, .serel-kit.json (installed packs, version, local mode), and whether Serel Memory is present. If there is no receipt, stop; do not install Kit.
 2. Clone https://github.com/madeordinary/serel-kit into a temporary directory outside this project. Follow its README section "Upgrade installed packs", not an older checkout.
 3. Preview without --apply: use the fresh clone's install.sh with this project's root as the target, --packs followed by a comma-separated list of installed packs to upgrade, and --upgrade. Quote paths that contain spaces. Select only packs recorded in the receipt. Use only documented flags; local mode carries over from the receipt. Adding packs is a separate setup.
-4. Show me the installed version from the receipt, the proposed Kit commit and whether it is released, its benefits, diffs, and conflicts. Wait for approval; only rerun a conflict-free preview with --apply.
+4. Show me the installed version from the receipt, the proposed Kit commit and whether it is released, its benefits, diffs, and conflicts. Compare new or changed pack workflows with my own commands and skills by what they do, not by name; report any overlap with my rules to keep, and hold that whole pack until I choose. Never delete, disable, or merge my workflows unless I approve that change. Wait for approval; only rerun a conflict-free preview with --apply.
 5. Handle conflicts only through the README's steps, with my approval. Never guess a baseline or edit the receipt to get past a conflict. If an old receipt needs its exact v<version> tag, fetch it into the temporary clone only.
 6. Preserve my pack customizations, uncommitted work, and sharing choices. Do not commit or push. Leave Serel Memory's installation and version unchanged; if present, offer its update separately.
 ```
