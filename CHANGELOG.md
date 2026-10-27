@@ -7,9 +7,26 @@ reaches 1.0.
 
 ## [Unreleased]
 
-Guided setup, local installs, and a pr pack. `--local` is available in this
-checkout and planned for the next release; the v0.2.0 installer does not have
-it.
+No changes yet.
+
+## [0.3.0] — 2026-10-26
+
+Guided setup and the pr pack. A copyable prompt has the agent inspect a
+project, ask a few questions, and propose the fewest packs before anything is
+installed, flagging any of your workflows that would compete with them.
+`--local` keeps Kit's files out of Git, and the new pr pack files, watches,
+and modernizes pull requests. Tested against Serel Memory 0.7.0.
+
+Upgrade from 0.2.0: `git pull` your Kit checkout. Receipts from 0.2.0 record
+file hashes, so no older tag is needed; a 0.1.0 receipt still needs `v0.1.0`,
+as in the 0.2.0 note. Preview with
+`install.sh <repo> --packs <names> --upgrade`, then apply with
+`--upgrade --apply`. The writing and verify packs are unchanged since 0.2.0,
+so upgrading them only advances the versions in the receipt. pr is a new
+pack: add it with an ordinary install, `install.sh <repo> --packs pr`,
+because `--upgrade` stops when it names a pack that is not installed. A 0.2.0
+installation is shared, so that install writes immediately; a local
+installation previews until `--apply`.
 
 ### Added
 
@@ -107,12 +124,14 @@ it.
 ### Changed
 
 - The verify pack README now says Serel Memory's `/ship` reads a map when one
-  exists. That `/ship` change is not in a Memory release yet. The Kit still
-  adds no hook.
+  exists. That `/ship` change ships in Serel Memory 0.7.0. The Kit still adds
+  no hook.
 - `--apply` also applies a local install. Without `--upgrade` it needs local
   mode, from `--local` or the receipt. Shared installs and upgrades behave as
   in 0.2.0. Because that check reads the receipt, a bare `--apply` is now
   refused after the pack and Memory checks, still with nothing written.
+- Install tests use the exact Serel Memory commit in `.github/ci/memory-ref`,
+  now the Serel Memory 0.7.0 release.
 
 ### Fixed
 
@@ -253,6 +272,7 @@ installs, upgrades, or reconfigures Serel Memory.
 - Upgrades are manual. To take a newer pack, delete the pack's files and
   install again; the installer will not overwrite them.
 
-[Unreleased]: https://github.com/madeordinary/serel-kit/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/madeordinary/serel-kit/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/madeordinary/serel-kit/releases/tag/v0.3.0
 [0.2.0]: https://github.com/madeordinary/serel-kit/releases/tag/v0.2.0
 [0.1.0]: https://github.com/madeordinary/serel-kit/releases/tag/v0.1.0
