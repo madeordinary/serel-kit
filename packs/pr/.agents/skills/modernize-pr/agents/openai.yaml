@@ -1,0 +1,4 @@
+interface:
+  display_name: "Modernize PR"
+  short_description: "Rebase an old PR, or recommend reworking or closing it"
+  default_prompt: "Use $modernize-pr on this pull request: work out what it was for and what changed around it, then recommend MODERNIZE, REWORK, or CLOSE. Rebase and push with a lease only for MODERNIZE. Never merge or close it."

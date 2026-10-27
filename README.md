@@ -14,6 +14,7 @@ It depends on the pack:
 
 - **writing** (`/polish`, `$polish`) needs nothing else — run [Guided setup](#guided-setup) below and use it.
 - **verify** (`/verify-map`, `$verify-map`) needs [Serel Memory](https://github.com/madeordinary/serel-memory) installed before it can be added, and an initialized memory bank when it runs.
+- **pr** (`/file-pr`, `/babysit-pr`, `/modernize-pr`, `/pr-comment`, and their `$` skills) needs no Memory. It needs an authenticated `gh`, and `babysit-pr` needs `python3` 3.9 or newer on macOS or Linux. `modernize-pr` reads Memory's accepted decisions when Memory is present.
 
 Want project continuity and Kit packs together? Use [Set up Memory and Kit together](https://github.com/madeordinary/serel-memory#set-up-memory-and-kit-together). One conversation handles new ideas and existing projects, preserves what is already installed, and helps you choose packs. You can keep Memory local while sharing Kit workflows with your team. Once setup is complete, skip Guided setup here.
 
@@ -43,7 +44,7 @@ rules. You can use one pack here without the other.
   plain, concrete language and shows you what it changed. The verify pack keeps
   a written record of how to check each feature by hand, and when someone last
   did.
-- **Developers new to coding agents.** Read the two packs' markdown files.
+- **Developers new to coding agents.** Read the packs' markdown files.
   They are short. They are how you learn what a workflow file is made of.
 - **Developers already using Serel Memory.** These are the workflows that did
   not belong in the core, held to the same contracts and the same parity rule.
@@ -69,7 +70,7 @@ Set up Serel Kit (https://github.com/madeordinary/serel-kit) in this repository.
 
 1. Inspect first and change nothing: the Git root and status, any .claude/ and .agents/ files, .serel-kit.json, and whether Serel Memory is present (.serel-memory.json, memory-bank/).
 2. Ask me one question at a time, at most four in all, and skip any whose answer you already know: the project's stage, the capabilities I want, which agents I use (Claude Code, Codex, or both), and whether Kit files should be shared through Git or kept local to this clone.
-3. Recommend the fewest supported packs that cover those capabilities. writing needs nothing else. verify needs Serel Memory to install and an initialized memory bank when it runs.
+3. Recommend the fewest supported packs that cover those capabilities. writing needs nothing else. verify needs Serel Memory to install and an initialized memory bank when it runs. pr needs no Memory, but needs an authenticated gh, and python3 3.9 or newer on macOS or Linux for babysit-pr.
 4. Compare my existing commands and skills, installed ones included, with each chosen pack's workflows by what they do, not by name. The Claude and Codex versions of one workflow are a pair, and a specialized workflow with a different job is not a duplicate. Report each overlap in the plan: both paths, my rules to keep, which should be primary, and whether to keep both (with the reason recorded in my workflow docs), migrate, or leave that pack out. An unresolved overlap leaves that whole pack out. Always install complete packs. Do not delete, disable, merge, or move my workflows unless I approve a migration with concrete diffs.
 5. If I want Serel Memory, or a chosen pack needs it, and it is missing, follow https://github.com/madeordinary/serel-memory/blob/main/docs/serel-setup.md. Do not install Memory silently or run its seeding interview from here.
 6. Carry every answer I already gave into whichever setup runs next, so no question is asked twice.
@@ -113,6 +114,7 @@ docs against the installed files. These rules apply to upgrades too.
 |-------|-------|-------|-------|-----------------|
 | writing pack: `/polish`, `$polish` | Serel Kit | `.claude/commands/polish.md`, `.agents/skills/polish/` | nothing | Kit's choice: shared by default, or `--local` |
 | verify pack: `/verify-map`, `$verify-map` | Serel Kit | `.claude/commands/verify-map.md`, `.agents/skills/verify-map/` | `.serel-memory.json` to install; an initialized bank to run | Kit's choice; the maps it writes live in the bank |
+| pr pack: `/file-pr`, `/babysit-pr`, `/modernize-pr`, `/pr-comment`, and their `$` skills | Serel Kit | `.claude/commands/<name>.md` and `.agents/skills/<name>/` for `file-pr`, `babysit-pr`, `modernize-pr`, and `pr-comment` | an authenticated `gh`; `python3` 3.9+ on macOS or Linux for `babysit-pr` | Kit's choice; pr-wait keeps its state in `~/.local/state/pr-wait/`, outside the repo |
 | Kit receipt | Serel Kit | `.serel-kit.json` | nothing | same as the Kit files |
 | Bank, rules, anchor, agent instructions | Serel Memory | `memory-bank/`, `.rules`, `.serel-memory.json`, `AGENTS.md` | nothing from Kit | Memory's setup decides; Kit never changes it |
 | Existing Claude instructions | your project | `CLAUDE.md` | nothing | yours; both tools preserve it, and Memory never creates it |
@@ -143,6 +145,9 @@ whole upgrade until you resolve it.
   not a subdirectory.
 - Claude Code or Codex to run the workflows.
 - Serel Memory in the target repo — for the verify pack only.
+- `gh`, the GitHub CLI, authenticated — for the pr pack. `babysit-pr` also
+  needs `python3` 3.9 or newer on macOS or Linux, unless it runs inside
+  T3 Code.
 
 ## Install
 
@@ -153,7 +158,7 @@ git clone https://github.com/madeordinary/serel-kit.git
 bash serel-kit/install.sh /path/to/your-repo --packs writing
 ```
 
-Both packs at once:
+Several packs at once:
 
 ```bash
 bash serel-kit/install.sh /path/to/your-repo --packs writing,verify
@@ -292,6 +297,7 @@ require manual recovery. Repeating a successful upgrade changes nothing.
 |------|-------------|-------|--------------------|
 | [writing](packs/writing/README.md) | `/polish` | `$polish` | no |
 | [verify](packs/verify/README.md) | `/verify-map` | `$verify-map` | yes |
+| [pr](packs/pr/README.md) | `/file-pr`, `/babysit-pr`, `/modernize-pr`, `/pr-comment` | `$file-pr`, `$babysit-pr`, `$modernize-pr`, `$pr-comment` | no |
 
 ### writing
 
@@ -312,6 +318,25 @@ at install; edit it.
 
 No record means verification is undocumented. That is useful information, not
 a failure. A map never replaces running the tests.
+
+### pr
+
+Four workflows for pull requests. `/file-pr` opens a real PR that leads with
+the problem. `/babysit-pr` watches it through CI and review with one watcher,
+fixes real findings, and reports when it is ready; it merges only when you
+ask. `/modernize-pr` decides whether an old PR should still land and rebases
+it with a lease when it should. `/pr-comment` holds the rules for every
+comment an agent posts on your behalf. `babysit-pr` bundles tstack's
+`pr-wait` script, copied unchanged.
+
+## Customize
+
+Keep your preferences, such as attribution lines, PR title style, or which
+review bots you run, in `AGENTS.md`, `CLAUDE.md`, or `.rules` rather than in
+pack files. An edited pack file is kept on upgrade only until upstream
+changes the same file; then the upgrade stops on a conflict you resolve by
+hand. The writing pack's `RULES.md` is still yours to edit; the same upgrade
+rule applies to it.
 
 ## What the tests prove, and what they don't
 
@@ -362,12 +387,23 @@ files, receipt, and exclusions after injected failures, and shared Kit beside
 a local memory bank. It isolates itself from your global Git configuration
 and needs no Memory checkout.
 
-Three of those four smoke cases need a Serel Memory checkout to scaffold. The
-test looks for `$SEREL_MEMORY_REPO` first, then a sibling `../memory` or
-`../serel-memory`. Without one it runs the no-Memory cases, prints
-`smoke-install PARTIAL` and **exits non-zero**, so a partial run can never read
-as a pass. Set `SEREL_KIT_ALLOW_PARTIAL=1` to accept a partial run locally. CI
-uses the preflight, which refuses partial results and requires all four cases.
+`smoke-pr-pack.sh` installs the pr pack into a plain repository and checks
+that every file, pr-wait and its license included, arrives byte-identical,
+and that pr-wait is executable and still matches its pinned upstream hash.
+It runs pr-wait with `python3 -I`: `--help` exits 0, and a missing or
+malformed PR argument exits 2 before pr-wait reaches GitHub. It then installs
+the pack beside Serel Memory and checks that nothing already there changed
+and that Memory's own checks still pass. It needs `python3`, and like
+`smoke-install.sh` it needs a Memory checkout for that last case. It never
+runs pr-wait against a real PR.
+
+Three of `smoke-install.sh`'s four cases need a Serel Memory checkout to
+scaffold, and so does `smoke-pr-pack.sh`'s last case. Each test looks for
+`$SEREL_MEMORY_REPO` first, then a sibling `../memory` or `../serel-memory`.
+Without one it runs the no-Memory cases, prints `PARTIAL` and **exits
+non-zero**, so a partial run can never read as a pass. Set
+`SEREL_KIT_ALLOW_PARTIAL=1` to accept a partial run locally. CI uses the
+preflight, which refuses partial results and requires every case.
 
 The preflight builds its Memory fixture at the exact commit in
 `.github/ci/memory-ref` (currently the Serel Memory 0.6.0 release). It first looks for that commit in `$SEREL_MEMORY_REPO`
@@ -399,9 +435,16 @@ Two ideas here came from Cursor's
 [pstack](https://github.com/cursor/plugins/tree/main/pstack) plugin (MIT): that
 "stop writing like a language model" is a job worth giving an agent its own
 rules for, and that a feature-by-feature map of how to verify behavior by hand
-belongs in the repo next to the code. The workflows, rules, template, and
-installer here are written from scratch — the ideas are credited, no text is
-copied.
+belongs in the repo next to the code. Those workflows, rules, and template,
+and the installer, are written from scratch — the ideas are credited, no text
+is copied.
+
+The pr pack adapts four skills from Theo Browne's
+[tstack](https://github.com/t3dotgg/tstack) (MIT): `file-pr`, `babysit-pr`,
+`modernize`, and `leaving-pr-comments`. The workflows are rewritten in this
+Kit's shape. Its `pr-wait` script is copied unchanged from tstack commit
+`7de017b3fc9d50c03cf3ecb98fb71e0ca65a78bd`, and tstack's MIT license travels
+with it in `.agents/skills/babysit-pr/LICENSE-tstack`.
 
 ## License
 

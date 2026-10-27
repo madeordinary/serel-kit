@@ -69,12 +69,16 @@ Installs four files:
 
 ## How reviews find these files
 
-There is no hook into `/ship` or `/review`, on purpose. Serel Memory
+This pack adds no hook into `/ship` or `/review`, on purpose. Serel Memory
 already has a convention for this: optional docs under `memory-bank/` are read
 when the current task touches that topic. A map at
 `memory-bank/verification/checkout.md` is exactly that — a review of the
 checkout code will find it and can say "the map's newest record is three
 revisions old."
+
+Serel Memory's `/ship` also reads a map when one exists: it follows the
+map's Recipe and reports the date of its newest record. That change is not
+in a Memory release yet. `/ship` never writes the map.
 
 If you want it enforced rather than found, that is a change to your own copy of
 `/review`, which is a markdown file you already own.

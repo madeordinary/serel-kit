@@ -1,0 +1,4 @@
+interface:
+  display_name: "Babysit PR"
+  short_description: "Watch a PR through CI and review with one watcher"
+  default_prompt: "Use $babysit-pr to watch this pull request through CI and review: read what already exists, start one watcher, fix the real findings, and tell me when it is ready. Do not merge unless I ask."
