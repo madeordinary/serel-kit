@@ -33,9 +33,11 @@ accepted decisions.
   starts one watcher. It verifies each bot finding against the source,
   fixes real failures, tells flakes apart from them, and declines scope
   creep with a written reason listed as a follow-up. After every watcher
-  exit it checks the current head afresh: required checks, reviews,
-  unresolved threads, and whether the branch is BEHIND or DIRTY. A PR with
-  no checks configured gets no watcher; it says so and stops.
+  exit it checks the current head afresh: required checks, required and
+  requested reviews, unresolved threads, and whether the merge state is
+  BEHIND, DIRTY, or BLOCKED. A PR that only lacks a required approval is
+  reported as needing you, not ready. A PR with no checks configured gets no
+  watcher; it says so and stops.
 - **modernize-pr** records the PR's state, intent, merge base, and what the
   base gained since. It looks for PRs that replaced this one, recommends
   MODERNIZE, REWORK, or CLOSE, and is willing to say CLOSE. For MODERNIZE it
@@ -97,8 +99,10 @@ workflows point at `.agents/skills/pr-comment/SKILL.md` by path whenever
 they post a comment. Keep that file.
 
 Put your preferences, such as attribution lines, title style, or merge
-method, in `AGENTS.md`, `CLAUDE.md`, or `.rules`. The workflows read the
-repository's rules, and the pack files stay free to upgrade.
+method, in `CLAUDE.md` for Claude Code or `AGENTS.md` for Codex, which each
+agent reads every session. With Serel Memory installed, its `.rules` works
+too, because Memory's session start reads it. The pack files then stay free
+to upgrade.
 
 ## Where pr-wait comes from
 
@@ -145,7 +149,8 @@ python3 .agents/skills/babysit-pr/scripts/pr-wait not-a-pr   # exits 2
    Expect it to read the existing checks, reviews, and threads before it
    starts one watcher: pr-wait under the Monitor tool, or T3 Code's watcher.
    Nothing is printed while the check runs. When it passes, expect a
-   readiness check, then `BABYSIT-PR: ready — <URL>`. The PR is not merged.
+   readiness check, then `BABYSIT-PR: ready — <URL>`, or `needs you` naming
+   the approval if the repository requires one. The PR is not merged.
 3. Type `/pr-comment <number> "acceptance check: please ignore"`.
 
    Expect a `URL:` line. Open it: the comment starts with the note callout
@@ -178,6 +183,7 @@ pr-wait process: `pgrep -f pr-wait` prints nothing.
 - It started a second watcher, or a polling or `sleep` loop of its own.
 - It said or posted "still waiting".
 - It called the checks green when the required checks could not be read.
+- It reported `ready` while a required approval was missing.
 - It pushed a rewritten branch without `--force-with-lease=<branch>:<sha>`.
 - A comment lacks the callout, or a thread was resolved before its reply
   posted.

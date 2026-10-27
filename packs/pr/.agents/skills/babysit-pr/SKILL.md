@@ -146,13 +146,19 @@ current head, which may not be the one the watcher saw:
    every reported check counts. If the required list could not be read, the
    answer is "unknown", never "green", whatever the reported checks show.
 3. Reviews: `reviewDecision`, and how many review threads are unresolved.
+   APPROVED, or empty when the repository requires no review, means no
+   required review is outstanding. REVIEW_REQUIRED means a required approval
+   is still missing.
 4. Merge state: BEHIND or DIRTY means the branch must be updated first.
-   UNKNOWN means GitHub is still computing it; read it once more before you
-   report.
+   BLOCKED means something the base requires is still missing. UNKNOWN means
+   GitHub is still computing it; read it once more, and if it is still
+   UNKNOWN, the PR is not ready.
 
 The PR is ready only when the required checks are green on the current head,
-no review asks for changes, no thread is unresolved, and the merge state is
-neither BEHIND nor DIRTY.
+no required review is outstanding, no review asks for changes, no thread is
+unresolved, and the merge state is known and is not BEHIND, DIRTY, or
+BLOCKED. When the only thing left is a required approval from a person,
+report `needs you`, with NEXT naming that approval, not `ready`.
 
 ## Acting on news
 
@@ -194,7 +200,8 @@ neither BEHIND nor DIRTY.
   unknown, or when base commits that landed after the last green run touch
   this PR's files: update the branch, push, and wait for green again. Use
   the merge method the user or the repository asks for.
-- Otherwise, report that the PR is ready and stop.
+- Otherwise, once the readiness check passes, report that the PR is ready
+  and stop.
 
 ## GitHub rate limits
 
@@ -219,7 +226,7 @@ MERGE STATE: <CLEAN | BEHIND | DIRTY | BLOCKED | UNSTABLE | UNKNOWN>
 FIXED: <finding - commit> | none
 DECLINED: <finding - reason, listed as a follow-up> | none
 FLAKES: <check - log evidence - re-run result> | none
-NEXT: <the one thing you need from the user> | ready; merge when you say so
+NEXT: <the one thing you need from the user, such as a required approval> | ready; merge when you say so
 ```
 
 Between events, print nothing when an event needs no action.

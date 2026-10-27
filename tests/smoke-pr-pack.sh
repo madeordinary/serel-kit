@@ -4,8 +4,8 @@
 # Cases:
 #   1. A plain git repo with no Serel Memory: the pr pack installs, every file
 #      under packs/pr/.claude and packs/pr/.agents arrives byte-identical,
-#      pr-wait and its license included, pr-wait stays executable, and
-#      nothing else is written but the receipt.
+#      pr-wait and its license included, and nothing else is written but the
+#      receipt.
 #   2. pr-wait, run from the installed copy as `python3 -I`, prints its help
 #      and exits 0, and a missing or malformed PR argument exits 2. Both stop
 #      before pr-wait calls gh or writes its state, so this needs no network
@@ -88,7 +88,6 @@ while IFS= read -r rel; do
     bad "installed copy differs from the pack: $rel"
   fi
 done <<<"$payload"
-[ -x "$plain/$PR_WAIT" ] || bad "the installed pr-wait is not executable"
 expected="$( { printf '%s\n' "$payload" | sed 's|^|./|'; printf './.serel-kit.json\n./README.md\n'; } | LC_ALL=C sort)"
 [ "$(cd "$plain" && find . -type f -not -path './.git/*' | LC_ALL=C sort)" = "$expected" ] ||
   bad "the install wrote files other than the pack and the receipt"

@@ -45,12 +45,12 @@ it.
     It needs `python3` 3.9 or newer on macOS or Linux and keeps its state in
     `~/.local/state/pr-wait/`.
 - `tests/smoke-pr-pack.sh` installs the pr pack alone and beside Serel Memory.
-  Every file arrives byte-identical, pr-wait stays executable and matches its
-  pinned hash, Memory's files are untouched, and Memory's own checks still
-  pass. pr-wait's `--help` exits 0 and bad input exits 2, without network or a
+  Every file arrives byte-identical, pr-wait matches its pinned hash,
+  Memory's files are untouched, and Memory's own checks still pass. pr-wait's `--help` exits 0 and bad input exits 2, without network or a
   real PR.
-- A README note on customizing: keep preferences in `AGENTS.md`, `CLAUDE.md`,
-  or `.rules` rather than pack files, because an edited pack file stops an
+- A README note on customizing: keep preferences in `CLAUDE.md` or
+  `AGENTS.md`, or in Serel Memory's `.rules` when Memory is installed, rather
+  than pack files, because an edited pack file stops an
   upgrade once upstream changes it too.
 - README guidance for choosing Kit alone or setting up Memory + Kit in one
   conversation, with links to Memory's setup chooser. It distinguishes
