@@ -332,8 +332,10 @@ comment an agent posts on your behalf. `babysit-pr` bundles tstack's
 ## Customize
 
 Keep your preferences, such as attribution lines, PR title style, or which
-review bots you run, in `AGENTS.md`, `CLAUDE.md`, or `.rules` rather than in
-pack files. An edited pack file is kept on upgrade only until upstream
+review bots you run, in `CLAUDE.md` for Claude Code or `AGENTS.md` for Codex,
+which each agent reads every session, rather than in pack files. With Serel
+Memory installed, its `.rules` works too, because Memory's session start
+reads it. An edited pack file is kept on upgrade only until upstream
 changes the same file; then the upgrade stops on a conflict you resolve by
 hand. The writing pack's `RULES.md` is still yours to edit; the same upgrade
 rule applies to it.
@@ -389,7 +391,7 @@ and needs no Memory checkout.
 
 `smoke-pr-pack.sh` installs the pr pack into a plain repository and checks
 that every file, pr-wait and its license included, arrives byte-identical,
-and that pr-wait is executable and still matches its pinned upstream hash.
+and that pr-wait still matches its pinned upstream hash.
 It runs pr-wait with `python3 -I`: `--help` exits 0, and a missing or
 malformed PR argument exits 2 before pr-wait reaches GitHub. It then installs
 the pack beside Serel Memory and checks that nothing already there changed
