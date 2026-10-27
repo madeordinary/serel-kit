@@ -46,6 +46,19 @@ already exists for the branch, report it and stop.
 7. The user's original request, in their words. The description's problem
    statement comes from it.
 
+If a `gh` read above fails because the GraphQL rate limit is used up
+(`gh api rate_limit --jq .resources.graphql`), read it through REST, which
+has a separate limit:
+
+- The default branch:
+  `gh api repos/<owner>/<repo> --jq .default_branch`.
+- An open PR for the branch:
+  `gh api "repos/<owner>/<repo>/pulls?head=<head-owner>:<branch>&state=open"`.
+  `<head-owner>` owns the repository the branch was pushed to: the fork's
+  owner for a fork, otherwise `<owner>`. An empty list means none is open.
+- Recent merged titles:
+  `gh api "repos/<owner>/<repo>/pulls?state=closed&sort=updated&direction=desc&per_page=30" --jq '[.[] | select(.merged_at != null)] | .[:10] | .[].title'`.
+
 ## Allowed writes
 
 - Pushing the current branch to its own remote branch when it is not there
@@ -99,6 +112,8 @@ no merge, no edits to other PRs.
    (`gh api rate_limit --jq .resources.graphql`), open it through REST, which
    has a separate limit:
    `gh api repos/<owner>/<repo>/pulls -f title=<title> -f head=<branch> -f base=<base> -F body=@<file>`.
+   For a branch pushed to a fork, send `-f head=<head-owner>:<branch>`
+   instead, with `<head-owner>` as in Required reads.
 7. Confirm GitHub returned the PR URL. If the user also asked to babysit it,
    continue with `.claude/commands/babysit-pr.md`.
 
