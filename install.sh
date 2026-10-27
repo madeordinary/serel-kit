@@ -23,6 +23,7 @@ pack_summary() {
   case "$1" in
     writing) printf '/polish     rewrite named text to the house rules, diff only' ;;
     verify)  printf '/verify-map feature verification maps (needs Serel Memory)' ;;
+    pr)      printf '/file-pr    /babysit-pr, /modernize-pr, /pr-comment: pull request workflows (needs gh)' ;;
     *)       printf 'no summary' ;;
   esac
 }

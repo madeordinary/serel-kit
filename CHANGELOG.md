@@ -7,11 +7,51 @@ reaches 1.0.
 
 ## [Unreleased]
 
-Guided setup and local installs. `--local` is available in this checkout and
-planned for the next release; the v0.2.0 installer does not have it.
+Guided setup, local installs, and a pr pack. `--local` is available in this
+checkout and planned for the next release; the v0.2.0 installer does not have
+it.
 
 ### Added
 
+- **pr pack** — `/file-pr`, `/babysit-pr`, `/modernize-pr`, and
+  `/pr-comment`, with their Codex skills. Adapted from Theo Browne's
+  [tstack](https://github.com/t3dotgg/tstack) (MIT) and rewritten in the
+  Kit's workflow shape. It needs an authenticated `gh` and no Memory.
+  - `file-pr` opens a real PR, not a draft. The title says why the change
+    matters and the description starts with the problem. It follows the
+    repository's template, title convention, and attribution rules, checks
+    for secrets and private details, and falls back to REST when GraphQL is
+    rate-limited. It never merges.
+  - `babysit-pr` reads existing reviews and threads before it starts one
+    watcher: T3 Code's `watch_pull_request` from the owning thread, or the
+    bundled `pr-wait`. Still-open findings are reassessed against current
+    code after a push. Every watcher exit is followed by a fresh check of the
+    current head. Required checks it cannot read are reported as unknown,
+    never green, and a PR with no checks gets no watcher. It merges only when
+    asked, never with `--admin`, and never while the branch is BEHIND or
+    DIRTY.
+  - `modernize-pr` recommends MODERNIZE, REWORK, or CLOSE. With Serel Memory
+    present it resolves one scope and bank and reads the applicable accepted
+    decisions, whatever their date, before moving into a disposable worktree.
+    It pushes only with `--force-with-lease=<branch>:<observed sha>` and never
+    merges, closes, or changes the base.
+  - `pr-comment` holds the rules for every comment posted on the user's
+    behalf: an attribution callout, the conclusion first, cited evidence, a
+    secrets check, and a returned URL before any thread is resolved.
+  - `pr-wait` is tstack's watcher, copied byte for byte from commit
+    `7de017b3fc9d50c03cf3ecb98fb71e0ca65a78bd` (sha256
+    `90393f85b95b78bff1b039744bdfb09dc88ff2b430e1c3df687ee6f449c97214`), with
+    tstack's license beside it in `.agents/skills/babysit-pr/LICENSE-tstack`.
+    It needs `python3` 3.9 or newer on macOS or Linux and keeps its state in
+    `~/.local/state/pr-wait/`.
+- `tests/smoke-pr-pack.sh` installs the pr pack alone and beside Serel Memory.
+  Every file arrives byte-identical, pr-wait stays executable and matches its
+  pinned hash, Memory's files are untouched, and Memory's own checks still
+  pass. pr-wait's `--help` exits 0 and bad input exits 2, without network or a
+  real PR.
+- A README note on customizing: keep preferences in `AGENTS.md`, `CLAUDE.md`,
+  or `.rules` rather than pack files, because an edited pack file stops an
+  upgrade once upstream changes it too.
 - README guidance for choosing Kit alone or setting up Memory + Kit in one
   conversation, with links to Memory's setup chooser. It distinguishes
   standalone writing from verification's Memory requirements and keeps
@@ -64,6 +104,9 @@ planned for the next release; the v0.2.0 installer does not have it.
 
 ### Changed
 
+- The verify pack README now says Serel Memory's `/ship` reads a map when one
+  exists. That `/ship` change is not in a Memory release yet. The Kit still
+  adds no hook.
 - `--apply` also applies a local install. Without `--upgrade` it needs local
   mode, from `--local` or the receipt. Shared installs and upgrades behave as
   in 0.2.0. Because that check reads the receipt, a bare `--apply` is now
@@ -78,6 +121,9 @@ planned for the next release; the v0.2.0 installer does not have it.
 
 ### Known limits
 
+- No automated test runs the pr workflows against a real pull request; the
+  pack README's acceptance exercise covers that. pr-wait does not run on
+  Windows.
 - Local means not committed. It is not access control or a backup. Excluded
   files do not travel with a clone, and `git clean -x` deletes them.
 - The installer never switches an installation between shared and local, and

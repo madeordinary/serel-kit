@@ -1,0 +1,4 @@
+interface:
+  display_name: "PR comment"
+  short_description: "Attributed, evidence-first GitHub comments"
+  default_prompt: "Use $pr-comment to post this reply on the pull request on my behalf, with the attribution callout, the conclusion first, and the URL GitHub returns."

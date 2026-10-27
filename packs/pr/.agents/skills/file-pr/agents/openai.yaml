@@ -1,0 +1,4 @@
+interface:
+  display_name: "File PR"
+  short_description: "Open a real PR that leads with the problem"
+  default_prompt: "Use $file-pr to open a pull request for this branch: check for an existing PR, review the diff against the base, follow the repo's template and title style, and lead the description with the problem."
