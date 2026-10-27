@@ -21,7 +21,9 @@ it.
     matters and the description starts with the problem. It follows the
     repository's template, title convention, and attribution rules, checks
     for secrets and private details, and falls back to REST when GraphQL is
-    rate-limited. It never merges.
+    rate-limited, both for its preflight reads (the default branch, an open
+    PR for the branch, and recent merged titles) and for opening the PR. It
+    never merges.
   - `babysit-pr` reads existing reviews and threads before it starts one
     watcher: T3 Code's `watch_pull_request` from the owning thread, or the
     bundled `pr-wait`. Still-open findings are reassessed against current

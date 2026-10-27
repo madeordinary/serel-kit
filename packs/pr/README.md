@@ -27,8 +27,9 @@ accepted decisions.
   against the base, and follows the repository's PR template, title
   convention, and attribution rules. It checks the title and description
   for secrets and private details, then opens a real PR, not a draft, so
-  review bots run. When GitHub's GraphQL limit is used up, it opens the PR
-  through REST.
+  review bots run. When GitHub's GraphQL limit is used up, it reads the
+  default branch, any open PR, and recent merged titles through REST, and
+  opens the PR through REST too.
 - **babysit-pr** reads every existing check, review, and thread first, then
   starts one watcher. It verifies each bot finding against the source,
   fixes real failures, tells flakes apart from them, and declines scope
