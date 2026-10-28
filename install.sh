@@ -1,13 +1,16 @@
 #!/usr/bin/env bash
 # Serel Kit pack installer.
 #
-# Copies optional workflow packs (Claude Code commands + Codex skills) into a
-# target git repository. It does not install, upgrade, or reconfigure Serel
-# Memory — it only detects Memory and refuses packs that need it. It never
-# overwrites an existing file during installation; upgrades require --apply.
-# It writes nothing outside `.claude/`,
-# `.agents/`, and the `.serel-kit.json` receipt, except that a local install
-# appends exact Kit paths to the repository's Git-resolved `info/exclude`.
+# Copies optional workflow packs (one SKILL.md per workflow: the Codex source
+# under .agents/skills/ and its byte-identical Claude Code copy under
+# .claude/skills/) into a target git repository. It does not install, upgrade,
+# or reconfigure Serel Memory — it only detects Memory and refuses packs that
+# need it. It never overwrites an existing file during installation; upgrades
+# require --apply, and the only files an upgrade removes are the six Claude
+# commands Kit 0.4.0 retired, each only when it is exactly as Kit installed it.
+# It writes nothing outside `.claude/`, `.agents/`, and the `.serel-kit.json`
+# receipt, except that a local install appends exact Kit paths to the
+# repository's Git-resolved `info/exclude`.
 #
 # Requires: bash, git, jq, and sha256sum or shasum.
 set -euo pipefail
@@ -61,8 +64,9 @@ Usage: install.sh <target-repo> --packs <pack>[,<pack>...]
        install.sh <target-repo> --packs <pack>[,<pack>...] --local [--apply]
        install.sh <target-repo> --packs <pack>[,<pack>...] --upgrade [--apply]
 
-Installs Serel Kit workflow packs into a git repository. Both adapters travel
-together: a Claude Code slash command and a Codex skill.
+Installs Serel Kit workflow packs into a git repository. Each workflow is one
+skill: the Codex source in .agents/skills/ and its Claude Code copy in
+.claude/skills/ travel together.
 
 Options:
   --packs <list>   comma-separated pack names (required)
@@ -151,7 +155,7 @@ for raw in "${raw_packs[@]}"; do
   [ "$known" -eq 1 ] || die "no such pack: '$raw' (run: install.sh --list)"
   case "$seen" in *" $p "*) continue ;; esac
   seen="$seen$p "
-  [ -d "$KIT_ROOT/packs/$p/.claude/commands" ] || die "pack '$p' has no .claude/commands directory"
+  [ -d "$KIT_ROOT/packs/$p/.claude/skills" ] || die "pack '$p' has no .claude/skills directory"
   [ -d "$KIT_ROOT/packs/$p/.agents/skills" ] || die "pack '$p' has no .agents/skills directory"
   packs+=("$p")
 done
@@ -193,10 +197,14 @@ hash_file() { hash_stream <"$1"; }
 
 # Restrict receipt paths as strictly as payload paths. They never authorize
 # writing arbitrary repository files, even if a receipt has been hand-edited.
+# .claude/commands/ is no longer shipped, but receipts and release tags from
+# Kit 0.1.0-0.3.0 name those paths, so they stay valid here.
 valid_payload_path() {
   [[ "$1" =~ ^[A-Za-z0-9_./-]+$ ]] || return 1
   case "/$1/" in *"/../"*|*"/./"*|*"//"*) return 1 ;; esac
   case "$1" in
+    .claude/skills/*/SKILL.md)
+      [[ "$1" =~ ^\.claude/skills/[^/]+/SKILL\.md$ ]] && ! is_protected "$1" ;;
     .claude/commands/*|.agents/skills/*/*) ! is_protected "$1" ;;
     *) return 1 ;;
   esac
@@ -301,7 +309,8 @@ if [ -f "$receipt" ]; then
   jq -e -s '
     def payload_path:
       (test("[^A-Za-z0-9_./-]") | not)
-      and (startswith(".claude/commands/") or test("^\\.agents/skills/[^/]+/"))
+      and (startswith(".claude/commands/") or test("^\\.claude/skills/[^/]+/SKILL\\.md\\z")
+        or test("^\\.agents/skills/[^/]+/"))
       and (split("/") | all(.[]; . != "" and . != "." and . != ".."));
     length == 1 and (.[0] |
     type == "object"
@@ -410,6 +419,9 @@ for p in "${packs[@]}"; do
   [ -s "$work/payload" ] || die "pack '$p' has no payload"
   while IFS= read -r rel; do
     valid_payload_path "$rel" || die "unsafe payload path: $rel"
+    case "$rel" in
+      .claude/commands/*) die "pack '$p' ships $rel; packs ship Claude Code skills, never commands" ;;
+    esac
     check_path_safety "$rel"
     # Compare complete paths and file/directory prefixes, case-folded so a
     # plan cannot collide when applied to a case-insensitive filesystem.
