@@ -1,6 +1,6 @@
 ---
 name: verify-map
-description: "Create or refresh a feature's verification map in the memory bank — how to see the feature work, and what someone last saw. Use when the user asks for a verification map, a manual test recipe, a feature map, or how to prove a feature works."
+description: "Create or refresh a feature's verification map in the memory bank — how to see the feature work by hand, and what someone actually saw the last time they looked. Use when the user asks for a verification map, a manual test recipe, a feature map, or how to prove a feature works."
 ---
 
 # Verify map
