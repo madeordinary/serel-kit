@@ -353,6 +353,8 @@ mv "$unsafe/$command_path" "$tmp/moved-command"
 ln -s "$tmp/moved-command" "$unsafe/$command_path"
 expect_refused "$unsafe" --packs writing --upgrade --apply
 grep -qF "UNSAFE PATH: $command_path is a symlink" "$tmp/refused.log" || bad "symlinked command not refused"
+expect_refused "$unsafe" --packs writing --upgrade # the plan itself refuses, not only the apply
+grep -qF "UNSAFE PATH: $command_path is a symlink" "$tmp/refused.log" || bad "preview accepted a symlinked command"
 rm "$unsafe/$command_path"
 mv "$tmp/moved-command" "$unsafe/$command_path"
 mv "$unsafe/.claude/commands" "$tmp/moved-commands"
