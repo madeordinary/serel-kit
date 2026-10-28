@@ -24,11 +24,24 @@
 #      every hash is regenerated from the tags with the installer's digest.
 #      This needs the release tags (CI fetches full history).
 #
+# usage: bash tests/check-packs.sh [--write]
+#   --write  first refresh every Claude copy from its source (creating a
+#            missing copy folder) and print each copy it changed, then run the
+#            checks. It never deletes anything and touches no other file, so
+#            an extra file in a copy folder is still reported.
+#
 # What it does NOT check: that a workflow behaves the same way in Claude Code
 # and Codex. Only a person running both can tell you that. See each pack's
 # acceptance exercise.
 set -euo pipefail
 cd "$(dirname "$0")/.."
+
+write=0
+case "$#:${1:-}" in
+  0:) ;;
+  1:--write) write=1 ;;
+  *) echo "usage: bash tests/check-packs.sh [--write]" >&2; exit 2 ;;
+esac
 
 fail=0
 packs=0
@@ -137,6 +150,31 @@ EOF
 }
 if ! own_cli_self_test; then fail=1; fi
 
+if [ "$write" -eq 1 ]; then
+  wrote=0
+  for src in packs/*/.agents/skills/*/SKILL.md; do
+    [ -f "$src" ] || continue
+    pack="${src%%/.agents/skills/*}"
+    w="$(basename "$(dirname "$src")")"
+    dst_dir="$pack/.claude/skills/$w"
+    dst="$dst_dir/SKILL.md"
+    if [ -f "$dst" ] && [ ! -L "$dst" ] && cmp -s "$src" "$dst"; then continue; fi
+    # Never write through a link or over a folder; the checks below report it.
+    if [ -L "$pack/.claude" ] || [ -L "$pack/.claude/skills" ] || [ -L "$dst_dir" ] ||
+      { [ -e "$dst" ] && [ ! -L "$dst" ] && [ ! -f "$dst" ]; }; then
+      echo "not refreshed: $dst is not a plain file in a plain folder"
+      continue
+    fi
+    if [ -e "$dst" ] || [ -L "$dst" ]; then what=refreshed; else what=created; fi
+    mkdir -p "$dst_dir"
+    rm -f "$dst"
+    cp "$src" "$dst"
+    echo "$what $dst from $src"
+    wrote=$((wrote + 1))
+  done
+  [ "$wrote" -gt 0 ] || echo "every Claude copy already matches its source"
+fi
+
 for dir in packs/*/; do
   pack="${dir%/}"
   name="$(basename "$pack")"
@@ -185,13 +223,13 @@ for dir in packs/*/; do
       fail=1
     fi
     if [ -L "$dst" ] || [ -L "$dst_root/$w" ]; then
-      echo "COPY DRIFT: $dst is a symlink; it must be a plain copy (cp $src $dst)"
+      echo "COPY DRIFT: $dst is a symlink; it must be a plain copy (run: bash tests/check-packs.sh --write)"
       fail=1
     elif [ ! -f "$dst" ]; then
-      echo "MISSING COPY: $src has no Claude copy $dst (cp $src $dst)"
+      echo "MISSING COPY: $src has no Claude copy $dst (run: bash tests/check-packs.sh --write)"
       fail=1
     elif ! cmp -s "$src" "$dst"; then
-      echo "COPY DRIFT: $dst differs from $src (edit the source, then cp $src $dst)"
+      echo "COPY DRIFT: $dst differs from $src (edit the source, then run: bash tests/check-packs.sh --write)"
       fail=1
     else
       copies=$((copies + 1))
