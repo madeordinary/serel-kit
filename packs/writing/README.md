@@ -40,20 +40,24 @@ bash /path/to/serel-kit/install.sh /path/to/your-repo --packs writing
 Installs four files:
 
 ```text
-.claude/commands/polish.md
 .agents/skills/polish/SKILL.md
 .agents/skills/polish/agents/openai.yaml
 .agents/skills/polish/RULES.md
+.claude/skills/polish/SKILL.md
 ```
+
+The two `SKILL.md` files are the same text: the first is the source, and Codex
+reads it. Claude Code reads the second, a copy. If you customize one, change
+the other the same way.
 
 `RULES.md` is yours after install. Edit it. The rules that survive contact
 with your project are the ones worth keeping.
 
 ## Acceptance exercise
 
-Automated tests prove the pack installs and that both adapters are present and
-paired. They cannot prove the workflow behaves the same way in both CLIs — a
-person has to check that. Run this once per CLI in a fresh session.
+Automated tests prove the pack installs and that the Claude Code copy is
+byte-identical to its source. Both CLIs run the same text, but no test can
+prove they behave the same way — a person has to check that. Run this once per CLI in a fresh session.
 
 Put this in `/tmp/polish-demo.md` first:
 
@@ -89,8 +93,8 @@ exists. Check with `git status` if the file is in a repo.
 
 Type `$polish /tmp/polish-demo.md`.
 
-Expect the same five things, with `-` instead of the em dash in the first
-line. Same result on disk: nothing written.
+Expect the same five things, including the em dash in the first line. Same
+result on disk: nothing written.
 
 ### It failed if
 

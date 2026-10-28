@@ -79,10 +79,6 @@ bash /path/to/serel-kit/install.sh /path/to/your-repo --packs pr
 Installs fourteen files:
 
 ```text
-.claude/commands/babysit-pr.md
-.claude/commands/file-pr.md
-.claude/commands/modernize-pr.md
-.claude/commands/pr-comment.md
 .agents/skills/babysit-pr/SKILL.md
 .agents/skills/babysit-pr/agents/openai.yaml
 .agents/skills/babysit-pr/scripts/pr-wait
@@ -93,11 +89,21 @@ Installs fourteen files:
 .agents/skills/modernize-pr/agents/openai.yaml
 .agents/skills/pr-comment/SKILL.md
 .agents/skills/pr-comment/agents/openai.yaml
+.claude/skills/babysit-pr/SKILL.md
+.claude/skills/file-pr/SKILL.md
+.claude/skills/modernize-pr/SKILL.md
+.claude/skills/pr-comment/SKILL.md
 ```
 
-Claude Code commands do not trigger on their own, so the other three
-workflows point at `.agents/skills/pr-comment/SKILL.md` by path whenever
-they post a comment. Keep that file.
+Each `.claude/skills/<name>/SKILL.md` is a copy of the
+`.agents/skills/<name>/SKILL.md` beside it in the pack: Codex reads the
+source, Claude Code reads the copy. If you customize one, change the other the
+same way.
+
+In both CLIs a workflow can start when your request matches its description,
+and you can also call it by name. The other three workflows read
+`.agents/skills/pr-comment/SKILL.md` by path whenever they post a comment, so
+keep that file.
 
 Put your preferences, such as attribution lines, title style, or merge
 method, in `CLAUDE.md` for Claude Code or `AGENTS.md` for Codex, which each
@@ -123,10 +129,10 @@ workflows adapt tstack's `file-pr`, `babysit-pr`, `modernize`, and
 
 ## Acceptance exercise
 
-Automated tests prove the pack installs byte for byte, that both adapters are
-present and paired, and that pr-wait starts. They cannot prove the workflows
-behave on a real pull request in either CLI: that takes actions on GitHub, so
-a person runs it. Use a throwaway repository you own, with one CI check that
+Automated tests prove the pack installs byte for byte, that each Claude Code
+copy is identical to its source, and that pr-wait starts. They cannot prove
+the workflows behave on a real pull request in either CLI: that takes actions
+on GitHub, so a person runs it. Use a throwaway repository you own, with one CI check that
 runs on pull requests and nobody else watching.
 
 ### Offline first
@@ -162,14 +168,14 @@ python3 .agents/skills/babysit-pr/scripts/pr-wait not-a-pr   # exits 2
 1. Push one commit to the base branch that touches a file the PR touches,
    then type `$modernize-pr <number>`.
 
-   Expect `MODERNIZE-PR: MODERNIZE - <URL>`, or a reasoned REWORK or CLOSE.
+   Expect `MODERNIZE-PR: MODERNIZE — <URL>`, or a reasoned REWORK or CLOSE.
    The report lists the merge base, the base changes since, and a
    range-diff summary. If it pushed, it used
    `--force-with-lease=<branch>:<sha>`. The PR is not merged.
 2. Type `$babysit-pr <number>`.
 
-   Expect the same report shape as in Claude Code, with `-` in place of the
-   em dash. pr-wait runs as one long command.
+   Expect the same report shape as in Claude Code. pr-wait runs as one long
+   command, not under the Monitor tool.
 
 ### With no checks configured
 

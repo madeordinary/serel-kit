@@ -14,7 +14,7 @@ It depends on the pack:
 
 - **writing** (`/polish`, `$polish`) needs nothing else — run [Guided setup](#guided-setup) below and use it.
 - **verify** (`/verify-map`, `$verify-map`) needs [Serel Memory](https://github.com/madeordinary/serel-memory) installed before it can be added, and an initialized memory bank when it runs.
-- **pr** (`/file-pr`, `/babysit-pr`, `/modernize-pr`, `/pr-comment`, and their `$` skills) needs no Memory. It needs an authenticated `gh`, and `babysit-pr` needs `python3` 3.9 or newer on macOS or Linux. `modernize-pr` reads Memory's accepted decisions when Memory is present.
+- **pr** (`/file-pr`, `/babysit-pr`, `/modernize-pr`, `/pr-comment`; `$file-pr` and so on in Codex) needs no Memory. It needs an authenticated `gh`, and `babysit-pr` needs `python3` 3.9 or newer on macOS or Linux. `modernize-pr` reads Memory's accepted decisions when Memory is present.
 
 Want project continuity and Kit packs together? Use [Set up Memory and Kit together](https://github.com/madeordinary/serel-memory#set-up-memory-and-kit-together). One conversation handles new ideas and existing projects, preserves what is already installed, and helps you choose packs. You can keep Memory local while sharing Kit workflows with your team. Once setup is complete, skip Guided setup here.
 
@@ -24,14 +24,17 @@ Already installed? [Update an existing installation](#update-an-existing-install
 
 A workflow is a markdown file that tells a coding agent how to do one job:
 what to read first, what it is allowed to change, what to hand back, and when
-to stop and ask you. Claude Code calls these slash commands
-(`.claude/commands/polish.md` becomes `/polish`). Codex calls them skills
-(`.agents/skills/polish/SKILL.md` becomes `$polish`). Same idea, two file
-layouts, and both are plain text you can read and edit.
+to stop and ask you. Both Claude Code and Codex read these as skills. Each
+workflow has one source, `.agents/skills/polish/SKILL.md`, which Codex runs as
+`$polish`. Claude Code runs a byte-identical copy at
+`.claude/skills/polish/SKILL.md` as `/polish`. Both are plain text you can
+read and edit. If you customize one, change the other the same way, or Claude
+Code and Codex will run different text.
 
 Serel Kit is a small collection of those, grouped into **packs**, plus an
-installer that copies a pack into your repository. Every pack ships both
-adapters, so the workflow exists in Claude Code and in Codex.
+installer that copies a pack into your repository. Every pack ships each
+workflow once, with its Claude Code copy, so it works in Claude Code and in
+Codex.
 
 Serel Memory is the engine: it gives a project a memory bank the agent reads at
 the start of every session. Serel Kit is optional workflows that follow Memory's
@@ -47,7 +50,7 @@ rules. You can use one pack here without the other.
 - **Developers new to coding agents.** Read the packs' markdown files.
   They are short. They are how you learn what a workflow file is made of.
 - **Developers already using Serel Memory.** These are the workflows that did
-  not belong in the core, held to the same contracts and the same parity rule.
+  not belong in the core, held to the same contracts and the same one-source rule.
 
 ## The boundary rule
 
@@ -71,7 +74,7 @@ Set up Serel Kit (https://github.com/madeordinary/serel-kit) in this repository.
 1. Inspect first and change nothing: the Git root and status, any .claude/ and .agents/ files, .serel-kit.json, and whether Serel Memory is present (.serel-memory.json, memory-bank/).
 2. Ask me one question at a time, at most four in all, and skip any whose answer you already know: the project's stage, the capabilities I want, which agents I use (Claude Code, Codex, or both), and whether Kit files should be shared through Git or kept local to this clone.
 3. Recommend the fewest supported packs that cover those capabilities. writing needs nothing else. verify needs Serel Memory to install and an initialized memory bank when it runs. pr needs no Memory, but needs an authenticated gh, and python3 3.9 or newer on macOS or Linux for babysit-pr.
-4. Compare my existing commands and skills, installed ones included, with each chosen pack's workflows by what they do, not by name. The Claude and Codex versions of one workflow are a pair, and a specialized workflow with a different job is not a duplicate. Report each overlap in the plan: both paths, my rules to keep, which should be primary, and whether to keep both (with the reason recorded in my workflow docs), migrate, or leave that pack out. An unresolved overlap leaves that whole pack out. Always install complete packs. Do not delete, disable, merge, or move my workflows unless I approve a migration with concrete diffs.
+4. Compare my existing commands and skills, installed ones included, with each chosen pack's workflows by what they do, not by name. The Claude Code copy and the Codex source of one Kit workflow are one workflow, not an overlap, and a specialized workflow with a different job is not a duplicate. Report each overlap in the plan: both paths, my rules to keep, which should be primary, and whether to keep both (with the reason recorded in my workflow docs), migrate, or leave that pack out. An unresolved overlap leaves that whole pack out. Always install complete packs. Do not delete, disable, merge, or move my workflows unless I approve a migration with concrete diffs.
 5. If I want Serel Memory, or a chosen pack needs it, and it is missing, follow https://github.com/madeordinary/serel-memory/blob/main/docs/serel-setup.md. Do not install Memory silently or run its seeding interview from here.
 6. Carry every answer I already gave into whichever setup runs next, so no question is asked twice.
 7. Before writing anything, show me the exact install command, every path it writes, and what Git will share or keep local. For a local install, show me the installer's preview. Wait for my approval.
@@ -112,9 +115,9 @@ docs against the installed files. These rules apply to upgrades too.
 
 | Piece | Owner | Paths | Needs | Shared or local |
 |-------|-------|-------|-------|-----------------|
-| writing pack: `/polish`, `$polish` | Serel Kit | `.claude/commands/polish.md`, `.agents/skills/polish/` | nothing | Kit's choice: shared by default, or `--local` |
-| verify pack: `/verify-map`, `$verify-map` | Serel Kit | `.claude/commands/verify-map.md`, `.agents/skills/verify-map/` | `.serel-memory.json` to install; an initialized bank to run | Kit's choice; the maps it writes live in the bank |
-| pr pack: `/file-pr`, `/babysit-pr`, `/modernize-pr`, `/pr-comment`, and their `$` skills | Serel Kit | `.claude/commands/<name>.md` and `.agents/skills/<name>/` for `file-pr`, `babysit-pr`, `modernize-pr`, and `pr-comment` | an authenticated `gh`; `python3` 3.9+ on macOS or Linux for `babysit-pr` | Kit's choice; pr-wait keeps its state in `~/.local/state/pr-wait/`, outside the repo |
+| writing pack: `/polish`, `$polish` | Serel Kit | `.claude/skills/polish/SKILL.md`, `.agents/skills/polish/` | nothing | Kit's choice: shared by default, or `--local` |
+| verify pack: `/verify-map`, `$verify-map` | Serel Kit | `.claude/skills/verify-map/SKILL.md`, `.agents/skills/verify-map/` | `.serel-memory.json` to install; an initialized bank to run | Kit's choice; the maps it writes live in the bank |
+| pr pack: `/file-pr`, `/babysit-pr`, `/modernize-pr`, `/pr-comment`; `$file-pr` and so on in Codex | Serel Kit | `.claude/skills/<name>/SKILL.md` and `.agents/skills/<name>/` for `file-pr`, `babysit-pr`, `modernize-pr`, and `pr-comment` | an authenticated `gh`; `python3` 3.9+ on macOS or Linux for `babysit-pr` | Kit's choice; pr-wait keeps its state in `~/.local/state/pr-wait/`, outside the repo |
 | Kit receipt | Serel Kit | `.serel-kit.json` | nothing | same as the Kit files |
 | Bank, rules, anchor, agent instructions | Serel Memory | `memory-bank/`, `.rules`, `.serel-memory.json`, `AGENTS.md` | nothing from Kit | Memory's setup decides; Kit never changes it |
 | Existing Claude instructions | your project | `CLAUDE.md` | nothing | yours; both tools preserve it, and Memory never creates it |
@@ -169,8 +172,9 @@ there. Nothing else in your repo changed.
 
 What the installer does:
 
-- Copies each pack's `.claude/commands/` files and its whole
-  `.agents/skills/<name>/` directory, resources included.
+- Copies each workflow's whole `.agents/skills/<name>/` directory, resources
+  included, and its Claude Code copy, `.claude/skills/<name>/SKILL.md`.
+  Kit 0.4.0 ships no `.claude/commands/` files.
 - Checks the complete payload against your repo **before** writing anything.
   A file that is already identical is skipped. A file that exists and differs
   is a conflict: the run stops, lists the conflicts, and writes nothing. It
@@ -204,7 +208,7 @@ confirm Git ignores every Kit path, copies the files, and writes the receipt
 last. If an ordinary write fails, the lines this run added are removed along
 with the files.
 
-- Only exact paths are excluded, such as `/.claude/commands/polish.md`.
+- Only exact paths are excluded, such as `/.claude/skills/polish/SKILL.md`.
   The installer never ignores all of `.claude/` or `.agents/`, so your own
   files there stay visible to Git. It only appends. It never edits or
   reorders existing lines, including yours and Serel Memory's, and never adds
@@ -215,7 +219,7 @@ with the files.
   `.git`, so the lines apply to every worktree of that repository.
 - A Kit path that Git already tracks is refused, even when its bytes match,
   because an ignore rule cannot hide a tracked file. A `.gitignore` or exclude
-  rule that re-includes a Kit path, such as `!/.claude/commands/polish.md`, is
+  rule that re-includes a Kit path, such as `!/.claude/skills/polish/SKILL.md`, is
   refused too. The installer never removes files from Git and never edits
   `.gitignore`.
 - The receipt records `"local": true`. Later runs, added packs, and upgrades
@@ -262,10 +266,11 @@ the incoming file:
 | Both changed it differently | Stop the entire selected upgrade |
 | A new upstream file has no local counterpart | Add it |
 | A managed file was deleted locally | Stop; do not recreate it |
-| Upstream retired a file | Leave it as-is and stop managing it |
+| Upstream retired a file | Leave it as-is and stop managing it, except the six retired Claude commands below |
 
 A different local file at a new upstream path is also a conflict. Nothing is
-deleted. A local installation stays local: new files get their exclusion
+deleted, except an unmodified retired Claude command in the 0.4.0 move below.
+A local installation stays local: new files get their exclusion
 lines before they are written. Unselected packs and unknown receipt metadata are preserved. Stored
 hashes always describe upstream bytes, so keeping your edited `RULES.md` does
 not turn your edits into the next upstream baseline.
@@ -281,6 +286,72 @@ Old v0.1 receipts record only a version. Their first upgrade needs that exact
 `v<version>` tag in the local Kit checkout to reconstruct the original payload.
 If it is missing, the installer stops and asks you to obtain it; it never
 fetches or guesses a baseline. Modern receipts carry hashes and need no tag.
+Receipts from 0.1.0, 0.2.0 and 0.3.0 all upgrade to 0.4.0.
+
+### Upgrading to 0.4.0: commands become skills
+
+Upgrade Serel Memory to 0.8.0 first. Kit 0.4.0 is tested against Memory 0.8.0,
+which moved its own Claude Code workflows from `.claude/commands/` to
+`.claude/skills/`. Then upgrade Kit.
+
+Up to 0.3.0, each Kit workflow had a Claude Code command
+(`.claude/commands/<name>.md`) beside its Codex skill. In 0.4.0 each workflow
+is one skill, and Claude Code reads a copy of it at
+`.claude/skills/<name>/SKILL.md`. An upgrade installs that copy. Leaving the
+old command beside it would give Claude Code two files for one workflow, so
+`--upgrade` retires the command.
+
+Only these six files can ever be removed, and each only when its own pack is
+being upgraded: `.claude/commands/polish.md` (writing),
+`.claude/commands/verify-map.md` (verify), and `.claude/commands/file-pr.md`,
+`.claude/commands/babysit-pr.md`, `.claude/commands/modernize-pr.md` and
+`.claude/commands/pr-comment.md` (pr). The preview, run without `--apply`,
+tells you what happens to each:
+
+| Preview line | Meaning |
+|--------------|---------|
+| `REMOVE` | The command is exactly as Kit installed it and its skill replaces it. `--apply` removes it. |
+| `ABSENT` | The command is already gone. Nothing to do. |
+| `RETIRED (left as-is)` | Kept, and Kit stops managing it. It is not one of the six, or another installed pack records it, or its bytes match no Kit release. |
+| `MODIFIED` | The command changed since Kit installed it. The new skill would hide your edits from Claude Code, so the whole run stops and nothing is written, with or without `--apply`. |
+
+Removals are part of the same apply as the other writes, so they are backed up
+and rolled back with the rest if something fails. In a local installation, a
+retired command that Git tracks is refused like any other tracked Kit path,
+and the command's exclude line stays, because a linked worktree may still
+have the file. Kit leaves an emptied `.claude/commands/` folder in place on
+purpose, since it is where your own commands live.
+
+A plain install (without `--upgrade`) over an older install of a pack is
+refused when the pack's old command is still there. The message points you to
+`--upgrade`, and nothing is written.
+
+### If an upgrade stops on a customized command
+
+The stop lists each `MODIFIED` command and prints these steps with your
+paths. Step 2 reads the original bytes from a release tag, so the Kit
+checkout must be a git clone with its tags. Legacy 0.1 upgrades already need
+that. `git -C <kit> tag` shows what you have.
+
+1. Copy your customized files outside `.claude/` and `.agents/`. That is the
+   command, and the Codex skill too if you changed it.
+2. Put back the bytes Kit installed:
+   - Restore the command from the tag that shipped it:
+     `git -C <kit> show v<version>:packs/<pack>/.claude/commands/<name>.md > .claude/commands/<name>.md`.
+     The installer prints this line with the right tag filled in.
+   - If you changed `.agents/skills/<name>/SKILL.md`, restore it to the bytes
+     Kit installed, or to the new ones:
+     `cp <kit>/packs/<pack>/.agents/skills/<name>/SKILL.md .agents/skills/<name>/SKILL.md`.
+     Leave the file in place. A missing Kit file also stops the upgrade.
+3. Run the upgrade again: `--upgrade`, then `--upgrade --apply`. It removes
+   the command, installs both new copies, and records their hashes.
+4. Reapply your customizations to both
+   `.agents/skills/<name>/SKILL.md` and `.claude/skills/<name>/SKILL.md`.
+   Later upgrades keep them as KEEP LOCAL.
+
+Do not port your edits into the new skill and retry: the installer would see
+a changed file with no baseline at that path and report another conflict.
+There is no force option.
 
 Use one writer at a time and keep project changes in version control. Before
 applying, the installer stages incoming bytes, checks destinations and the
@@ -364,10 +435,13 @@ the Markdown manifest/lockfile from `.github/ci/`, and
 `.github/ci/node-version` for Node. Action revisions are pinned in the workflow.
 Rerun the preflight and GitHub checks when changing pins.
 
-**The automated tests cover installation, upgrades, local installs, and adapter pairing.**
-`check-packs.sh` asserts every pack ships both adapters plus the Codex
-manifest, that every resource a workflow points at travels with it, and that
-neither adapter shells out to its own CLI. `smoke-install.sh` installs the
+**The automated tests cover installation, upgrades, local installs, and the one-source layout.**
+`check-packs.sh` asserts every workflow has one source with its Codex
+manifest, that its `.claude/skills/` copy is byte-identical and alone in its
+folder, that no pack ships `.claude/commands/`, that every resource a
+workflow points at travels with it, that no workflow calls its own CLI, and
+that the installer's list of retired commands matches what the release tags
+shipped. `smoke-install.sh` installs the
 packs into throwaway git repositories and checks that the refusal path writes
 nothing however the pack name is spelled, that a malformed receipt, a
 symlinked destination path, or a file standing where a directory belongs each
@@ -420,9 +494,10 @@ a green run does not claim compatibility with every newer Memory commit.
 The Memory integration fixture reads the committed, pinned tree; the Kit
 installer and pack checks exercise the working tree.
 
-**They do not prove that a workflow behaves the same way in both CLIs.** No automated test
-here runs Claude Code or Codex. Whether `/polish` and `$polish` produce the same
-kind of answer is something a person has to check, once, by running both. Each
+**They do not prove that a workflow behaves the same way in both CLIs.** Both run the same
+skill text, but no automated test here runs Claude Code or Codex. Whether
+`/polish` and `$polish` produce the same kind of answer is something a person
+has to check, once, by running both. Each
 pack's README ends with an acceptance exercise for exactly that: the prompt to
 type, the shape of the reply to expect, and what should exist on disk
 afterwards. Do it after you install, and again when you edit the prompts.

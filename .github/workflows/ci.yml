@@ -11,8 +11,9 @@ permissions:
 jobs:
   checks:
     # These are Serel Kit's own integrity checks: the installer, and the rule
-    # that every pack ships both adapters. They are meaningless in a repo that
-    # merely installed a pack, so the job self-disables outside this repository.
+    # that every pack ships one source per workflow plus its Claude copy. They
+    # are meaningless in a repo that merely installed a pack, so the job
+    # self-disables outside this repository.
     if: github.repository == 'madeordinary/serel-kit'
     runs-on: ubuntu-24.04
     steps:
