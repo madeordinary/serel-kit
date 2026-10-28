@@ -1,29 +1,25 @@
 ---
-description: Watch a pull request through CI and review with one watcher, fix real findings, decline scope creep, and report when it is ready. Merges only when asked.
+name: babysit-pr
+description: "Watch a pull request through CI and review with one watcher (T3 Code's watch_pull_request, or the bundled pr-wait script), fix real findings, decline scope creep with a written reason, and report when it is ready. Use when the user asks to watch, monitor, or babysit a PR. Merges only when explicitly asked."
 ---
 
-# /babysit-pr
+# Babysit PR
 
 See a pull request through CI and review. Use one watcher, fix what is really
 broken, decline what is not worth doing with a written reason, and report
 when the PR is ready. It merges only when the user explicitly asks.
 
-Usage:
-
-```text
-/babysit-pr 482
-/babysit-pr https://github.com/acme/shop/pull/482
-/babysit-pr                          # the PR for the current branch
-/babysit-pr 482 and merge when ready
-```
+Invoke it as `$babysit-pr <PR number or URL>`, or with no argument for the
+PR of the current branch. "And merge when ready" is the explicit request a
+merge needs.
 
 ## Trigger
 
 Use it when the user asks to watch, monitor, or babysit a PR, or when
-`/file-pr` was asked to babysit the PR it opened.
+`$file-pr` was asked to babysit the PR it opened.
 
-Do not use it to file a PR (`/file-pr`) or to revive an old one
-(`/modernize-pr`). Do not use it to merge a PR nobody asked you to merge.
+Do not use it to file a PR (`$file-pr`) or to revive an old one
+(`$modernize-pr`). Do not use it to merge a PR nobody asked you to merge.
 
 ## Required reads
 
@@ -75,9 +71,9 @@ Asking you to babysit a PR approves these, and only these:
 
 A merge needs the user's explicit request. Closing needs the user's answer to
 a question you ask. Changing the base, the title, the description, or another
-PR is not part of this workflow.
+PR is not part of this skill.
 
-## Steps
+## Workflow
 
 1. Run the reads above. Stop on anything in Stop conditions.
 2. Act on what already exists: failing checks, open findings, unresolved
@@ -122,15 +118,14 @@ python3 .agents/skills/babysit-pr/scripts/pr-wait <pr> --until green
 - Use `--until ready` only when the repository uses Greptile or Macroscope.
   It also waits for their review and for no unresolved threads. Use
   `--until green` everywhere else.
-- In Claude Code, run it under the Monitor tool with the longest timeout the
-  tool allows. Each line pr-wait prints wakes you. When the monitor expires,
-  start it again; the expired process releases its lock, and pr-wait's
-  state file still knows what it has reported. If the Monitor tool is not
-  available, run it as one background command; it ends on its own.
+- In Codex, run it as one long command, with a timeout long enough for the
+  slowest CI run. It prints one line per event and ends on its own. If the
+  command is cut off, start it again; pr-wait's state file still knows what
+  it has reported.
 - Start it again after you push, after you handle an exit 1, after a resume,
-  and after the monitor expires. If more than six hours passed since it last
-  ran, pr-wait treats its state as stale and records a fresh, silent
-  baseline: read the PR's comments and threads again first.
+  and after a cut-off. If more than six hours passed since it last ran,
+  pr-wait treats its state as stale and records a fresh, silent baseline:
+  read the PR's comments and threads again first.
 
 pr-wait's exit codes:
 
@@ -223,14 +218,14 @@ restart a watcher in a tight loop.
 When you stop, print:
 
 ```text
-BABYSIT-PR: <ready | blocked | needs you | merged | closed | no checks configured> — <PR URL>
+BABYSIT-PR: <ready | blocked | needs you | merged | closed | no checks configured> - <PR URL>
 HEAD: <short sha>
-CHECKS: <green | failing: <names> | pending | unknown — <why>> (required: <names | none set | unreadable>)
+CHECKS: <green | failing: <names> | pending | unknown - <why>> (required: <names | none set | unreadable>)
 REVIEWS: <approved | changes requested | review required | none>; unresolved threads: <n>
 MERGE STATE: <CLEAN | BEHIND | DIRTY | BLOCKED | UNSTABLE | UNKNOWN>
-FIXED: <finding — commit> | none
-DECLINED: <finding — reason, listed as a follow-up> | none
-FLAKES: <check — log evidence — re-run result> | none
+FIXED: <finding - commit> | none
+DECLINED: <finding - reason, listed as a follow-up> | none
+FLAKES: <check - log evidence - re-run result> | none
 NEXT: <the one thing you need from the user, such as a required approval> | ready; merge when you say so
 ```
 
@@ -266,7 +261,8 @@ Stop and ask when:
 
 ## Where pr-wait comes from
 
-`.agents/skills/babysit-pr/scripts/pr-wait` is copied byte for byte from
+`scripts/pr-wait` next to this skill
+(`.agents/skills/babysit-pr/scripts/pr-wait`) is copied byte for byte from
 [tstack](https://github.com/t3dotgg/tstack) at commit
 `7de017b3fc9d50c03cf3ecb98fb71e0ca65a78bd`
 ([source](https://github.com/t3dotgg/tstack/blob/7de017b3fc9d50c03cf3ecb98fb71e0ca65a78bd/skills/babysit-pr/scripts/pr-wait)),

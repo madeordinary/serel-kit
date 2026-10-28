@@ -1,21 +1,16 @@
 ---
-description: Post a GitHub comment or reply on the user's behalf, with an attribution callout, evidence, and a returned URL. Use for every comment an agent posts.
+name: pr-comment
+description: "Rules for every GitHub comment posted on the user's behalf: an attribution callout, the conclusion first, cited evidence, a secrets check, and a returned URL. Use whenever you post or reply to a PR comment, review comment, or review thread, including from file-pr, babysit-pr, and modernize-pr."
 ---
 
-# /pr-comment
+# PR comment
 
 Rules for every comment you post on GitHub on the user's behalf. Follow them
-whether the user asked for the comment directly or another workflow needs one:
-`/file-pr`, `/babysit-pr`, and `/modernize-pr` point here, at
-`.agents/skills/pr-comment/SKILL.md`, which carries the same rules.
+whether the user asked for the comment directly or another skill needs one:
+`$file-pr`, `$babysit-pr`, and `$modernize-pr` point here, at
+`.agents/skills/pr-comment/SKILL.md`.
 
-Usage:
-
-```text
-/pr-comment 482 "the retry change is intentional; see the linked issue"
-/pr-comment https://github.com/acme/shop/pull/482#discussion_r1234567
-/pr-comment                     # then say what to reply to, and the gist
-```
+Invoke it as `$pr-comment <PR or thread URL> [what to say]`.
 
 ## Trigger
 
@@ -25,7 +20,7 @@ the written reason given before resolving or dismissing a thread.
 
 Do not use it for PR descriptions, commit messages, or text the user asked to
 post word for word without attribution. Do not post a comment nobody needs:
-if neither the user nor the calling workflow asked for one, say nothing.
+if neither the user nor the calling skill asked for one, say nothing.
 
 ## Required reads
 
@@ -50,8 +45,8 @@ if neither the user nor the calling workflow asked for one, say nothing.
   the reply's URL. Leave a person's thread for that person to resolve unless
   the user says otherwise.
 
-If the user asked for this comment, or the calling workflow's request covers
-it, post without asking again. Otherwise show the draft and ask first.
+If the user asked for this comment, or the calling skill's request covers it,
+post without asking again. Otherwise show the draft and ask first.
 
 ## The format
 
@@ -84,7 +79,7 @@ the comment itself:
   memory bank content. Remove them, or stop and ask if removing one would
   change the meaning.
 
-## Steps
+## Workflow
 
 1. Read what you are answering and gather the evidence.
 2. Draft the comment in the format above, in a temporary body file.
@@ -99,7 +94,7 @@ the comment itself:
 ## Output contract
 
 ```text
-PR-COMMENT: <posted | not posted> — <PR or thread URL>
+PR-COMMENT: <posted | not posted> - <PR or thread URL>
 URL: <the URL GitHub returned> | none
 RESOLVED: <thread URL> | no
 ```
