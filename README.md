@@ -472,7 +472,7 @@ and that Memory's own checks still pass. It needs `python3`, and like
 `smoke-install.sh` it needs a Memory checkout for that last case. It never
 runs pr-wait against a real PR.
 
-Three of `smoke-install.sh`'s four cases need a Serel Memory checkout to
+Cases 2 to 5 of `smoke-install.sh`'s five need a Serel Memory checkout to
 scaffold, and so does `smoke-pr-pack.sh`'s last case. Each test looks for
 `$SEREL_MEMORY_REPO` first, then a sibling `../memory` or `../serel-memory`.
 Without one it runs the no-Memory cases, prints `PARTIAL` and **exits

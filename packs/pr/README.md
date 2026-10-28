@@ -105,6 +105,12 @@ and you can also call it by name. The other three workflows read
 `.agents/skills/pr-comment/SKILL.md` by path whenever they post a comment, so
 keep that file.
 
+Upgrading from 0.3.0 or older retires the four old
+`.claude/commands/<name>.md` files for this pack. The `--upgrade` preview shows
+each as `REMOVE`. If you changed one, the preview shows `MODIFIED` and the
+upgrade stops with nothing written. The recovery steps are in [If an upgrade stops on a customized command](../../README.md#if-an-upgrade-stops-on-a-customized-command) in the main
+README. If the repo also has Serel Memory, upgrade it to 0.8.0 first.
+
 Put your preferences, such as attribution lines, title style, or merge
 method, in `CLAUDE.md` for Claude Code or `AGENTS.md` for Codex, which each
 agent reads every session. With Serel Memory installed, its `.rules` works

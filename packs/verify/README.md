@@ -71,6 +71,12 @@ The two `SKILL.md` files are the same text: the first is the source, and Codex
 reads it. Claude Code reads the second, a copy. If you customize one, change
 the other the same way.
 
+Upgrading from 0.3.0 or older retires the old `.claude/commands/verify-map.md`.
+The `--upgrade` preview shows it as `REMOVE`. If you changed that command, the
+preview shows `MODIFIED` and the upgrade stops with nothing written. The
+recovery steps are in [If an upgrade stops on a customized command](../../README.md#if-an-upgrade-stops-on-a-customized-command) in the main README. Upgrade Serel Memory to 0.8.0
+first.
+
 ## How reviews find these files
 
 This pack adds no hook into `/ship` or `/review`, on purpose. Serel Memory
