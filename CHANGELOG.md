@@ -9,6 +9,84 @@ reaches 1.0.
 
 No changes yet.
 
+## [0.4.0] — 2026-10-28
+
+One file per workflow. Each workflow in the writing, verify and pr packs now
+has a single source, `.agents/skills/<name>/SKILL.md`, which Codex reads, and
+Claude Code reads a byte-identical copy at `.claude/skills/<name>/SKILL.md`.
+The packs no longer ship `.claude/commands/`. You still call workflows the same
+way: `/name` in Claude Code and `$name` in Codex. The Claude and Codex
+versions of each workflow used to be written separately and had drifted a
+little; merging them kept every rule from both. Tested against Serel Memory
+0.8.0.
+
+Upgrade from 0.3.0: upgrade Serel Memory to 0.8.0 first, then `git pull` your
+Kit checkout. Receipts from 0.2.0 and 0.3.0 record file hashes, so no older
+tag is needed; a 0.1.0 receipt still needs `v0.1.0`, as in the 0.2.0 note.
+Preview with `install.sh <repo> --packs <names> --upgrade`, then apply with
+`--upgrade --apply`. The preview now shows what happens to the old Claude
+Code command of each workflow, `.claude/commands/<name>.md`: `REMOVE` for an
+unmodified one, which `--apply` deletes and replaces with the skill copy;
+`ABSENT` when it is already gone; `RETIRED (left as-is)` for anything else.
+A command you changed shows as `MODIFIED` and stops the whole upgrade with
+nothing written, because the new skill would hide your edits from Claude
+Code. The README's "If an upgrade stops on a customized command" gives the
+recovery steps; they need a Kit checkout with its release tags. A plain
+install over an older install of a pack is refused and points to `--upgrade`.
+An emptied `.claude/commands/` folder is left in place on purpose.
+
+### Changed
+
+- **One source per workflow.** `polish`, `verify-map`, `file-pr`,
+  `babysit-pr`, `modernize-pr` and `pr-comment` each have one `SKILL.md`
+  under `.agents/skills/`, plus its Claude Code copy under `.claude/skills/`.
+  Resources (`RULES.md`, `TEMPLATE.md`, `pr-wait`, `LICENSE-tstack`,
+  `agents/openai.yaml`) stay only in the `.agents/skills/` folder, and the
+  workflows refer to them by repo-root path.
+- **Descriptions carry both adapters' triggers.** Each skill's description
+  now has the lead and the guarantees of both old files, so both CLIs can start
+  a workflow from the same wording.
+- **Both CLIs print the same output lines.** Where a Codex version printed a
+  hyphen, such as `POLISH: <target> - <n> change(s)` or verify-map's
+  `RECORDS: none - …`, both CLIs now print the em dash.
+- **The installer reads and writes the new layout.** Installs write
+  `.agents/skills/<name>/...` and `.claude/skills/<name>/SKILL.md`. Receipts
+  and upgrades still read `.claude/commands/*` paths recorded by 0.1.0, 0.2.0
+  and 0.3.0.
+
+### Added
+
+- **Upgrade removes the six retired commands, and only those.** An explicit
+  map in `install.sh` covers `.claude/commands/` `polish.md`, `verify-map.md`,
+  `file-pr.md`, `babysit-pr.md`, `modernize-pr.md` and `pr-comment.md`, each
+  tied to its pack. A command is removed only when its pack is the one being
+  upgraded, no other installed pack records it, and its bytes are exactly
+  what Kit installed and what a Kit release shipped. The removal is part of
+  the upgrade's transaction: previewed first, rechecked before applying,
+  backed up and rolled back with the other writes. In a local installation a
+  retired command that Git tracks is refused, and its exclude line stays.
+- **A customized command stops the upgrade, with a documented way out.** The
+  stop message and the README's "If an upgrade stops on a customized command"
+  walk through saving your files, restoring the bytes Kit installed, rerunning
+  the upgrade, and reapplying your changes to both new copies. There is no
+  force option.
+- **`check-packs.sh` checks the new layout.** It asserts that each Claude copy
+  is byte-identical to its source and alone in its folder, that no pack ships
+  `.claude/commands/`, that the resources a body names exist, that no body
+  calls its own CLI, and that the installer's retired-command list and hashes
+  match the release tags.
+- **`smoke-upgrade.sh` covers the move.** It seeds real 0.1.0, 0.2.0 and 0.3.0
+  installs with their own installers and upgrades them: an unmodified command
+  removed, a modified one stopping the run, an already-absent one, a path
+  another pack or Serel Memory records, injected failures with rollback, and
+  the recovery steps. `tests/ci.sh` now requires the tags `v0.1.0`, `v0.2.0`
+  and `v0.3.0`.
+
+### Fixed
+
+- `file-pr`'s REST fallback found no open PR for a branch whose name contains
+  `+`; the lookup now URL-encodes the branch name.
+
 ## [0.3.0] — 2026-10-26
 
 Guided setup and the pr pack. A copyable prompt has the agent inspect a
@@ -272,7 +350,8 @@ installs, upgrades, or reconfigures Serel Memory.
 - Upgrades are manual. To take a newer pack, delete the pack's files and
   install again; the installer will not overwrite them.
 
-[Unreleased]: https://github.com/madeordinary/serel-kit/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/madeordinary/serel-kit/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/madeordinary/serel-kit/releases/tag/v0.4.0
 [0.3.0]: https://github.com/madeordinary/serel-kit/releases/tag/v0.3.0
 [0.2.0]: https://github.com/madeordinary/serel-kit/releases/tag/v0.2.0
 [0.1.0]: https://github.com/madeordinary/serel-kit/releases/tag/v0.1.0
