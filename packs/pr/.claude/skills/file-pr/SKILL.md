@@ -1,6 +1,6 @@
 ---
 name: file-pr
-description: "Open a real pull request for the current branch, with a title that says why the change matters and a description that starts with the problem. Use when the user asks to file, open, or create a PR. Never merges and never opens a draft."
+description: "Open a real pull request for the current branch, with a title that says why it matters and a description that starts with the problem. Never merges."
 ---
 
 # File PR
@@ -9,8 +9,15 @@ Open a pull request for the current branch that a reviewer can understand in
 one read: a title that says why the change matters, and a description that
 starts with the problem. It opens a real PR, not a draft, and never merges.
 
-Invoke it as `$file-pr`, optionally with `--base <branch>`. "File it and
-babysit it" continues with `$babysit-pr` once the PR exists.
+Call it as `/file-pr` in Claude Code or `$file-pr` in Codex, optionally with
+`--base <branch>`. "File it and babysit it" continues with `babysit-pr` once
+the PR exists. For example:
+
+```text
+file-pr
+file-pr --base release/2.4
+file-pr and babysit it        # files, then continues with babysit-pr
+```
 
 ## Trigger
 
@@ -59,7 +66,7 @@ has a separate limit:
 
 - Pushing the current branch to its own remote branch when it is not there
   yet or the remote is behind: `git push -u origin <branch>`. A push that
-  would need force stops the skill.
+  would need force stops the workflow.
 - One pull request: `gh pr create`. The body goes through a temporary file
   outside the repository.
 - No follow-up comment unless the user's request needs one. When it does,
@@ -111,12 +118,12 @@ no merge, no edits to other PRs.
    For a branch pushed to a fork, send `-f head=<head-owner>:<branch>`
    instead, with `<head-owner>` as in Required reads.
 7. Confirm GitHub returned the PR URL. If the user also asked to babysit it,
-   continue with `$babysit-pr` (`.agents/skills/babysit-pr/SKILL.md`).
+   continue with `babysit-pr` (`.agents/skills/babysit-pr/SKILL.md`).
 
 ## Output contract
 
 ```text
-FILE-PR: <opened | already exists | not opened> - <PR URL>
+FILE-PR: <opened | already exists | not opened> — <PR URL>
 TITLE: <title>
 BASE: <base> <- <branch> (<n> commits, <n> files)
 TEMPLATE: <path | none>

@@ -1,17 +1,24 @@
 ---
 name: modernize-pr
-description: "Bring an old pull request up to date, or decide it should not land: MODERNIZE, REWORK, or CLOSE, with evidence. Use when the user asks to rebase, update, revive, or modernize an old PR, or whether it should still land. Pushes only with a lease; never merges, closes, or changes the base."
+description: "Bring an old pull request up to date, or decide it should not land, with MODERNIZE, REWORK, or CLOSE and the evidence. Rebases with a lease; never merges, closes, or changes the base."
 ---
 
 # Modernize PR
 
 Modernize the idea, not just the branch. A clean rebase does not prove that a
-PR still belongs in the product. This skill works out what the PR was for
+PR still belongs in the product. This workflow works out what the PR was for
 and what changed around it, then recommends MODERNIZE, REWORK, or CLOSE. Only
 MODERNIZE rebases and pushes.
 
-Invoke it as `$modernize-pr <PR number or URL>`, optionally with
-`--scope <path>` to choose which Serel Memory bank's decisions apply.
+Call it as `/modernize-pr <PR number or URL>` in Claude Code or
+`$modernize-pr <PR number or URL>` in Codex, optionally with `--scope <path>`
+to choose which Serel Memory bank's decisions apply. For example:
+
+```text
+modernize-pr 311
+modernize-pr https://github.com/acme/shop/pull/311
+modernize-pr 311 --scope projects/storefront
+```
 
 ## Trigger
 
@@ -19,7 +26,7 @@ Use it when the user asks to rebase, update, revive, or modernize an old PR,
 or asks whether an old PR should still land.
 
 Do not use it for a PR that only needs CI and review attention
-(`$babysit-pr`). Do not use it to merge or close a PR.
+(`babysit-pr`). Do not use it to merge or close a PR.
 
 ## Required reads
 
@@ -51,7 +58,7 @@ Git-excluded bank files, such as `memory-bank.local/`.
    `--scope <path>` selects it and `.` is the repo root; otherwise the project
    root the current directory sits in; otherwise the repo root. Exactly one
    scope per invocation, never a remembered one. A `--scope` that is not a
-   project root stops the skill with the list of valid selectors.
+   project root stops the workflow with the list of valid selectors.
 2. **Resolve the effective bank** ("Resolving the effective bank"). Inside
    that scope root, `memory-bank.local/` is the effective bank when it exists,
    otherwise `memory-bank/`.
@@ -65,7 +72,7 @@ Git-excluded bank files, such as `memory-bank.local/`.
    re-run with that `--scope`. Never read across scopes.
 
 A bank whose core files are missing, empty, or still only template
-placeholders has no decisions to read. Say so and carry on; this skill
+placeholders has no decisions to read. Say so and carry on; this workflow
 does not need Memory. A `memory-bank.local/` overlay is partial by design,
 and the files it lacks are not an uninitialized bank. Never write to the bank.
 
@@ -150,16 +157,16 @@ approve merging, closing, changing the base branch, or growing the scope.
 ## Output contract
 
 ```text
-MODERNIZE-PR: <MODERNIZE | REWORK | CLOSE> - <PR URL>
+MODERNIZE-PR: <MODERNIZE | REWORK | CLOSE> — <PR URL>
 WHY: <the reason, in one or two sentences>
 INTENT: <the smallest coherent goal>
 PR: <state>; base <base> at <sha>; head <owner:branch> at <observed sha>; merge base <sha>
 BASE CHANGES: <meaningful changes since the merge base, with commits or PRs> | none that matter
 CONFLICTS: <conceptual conflicts> | none found
 DECISIONS: <accepted decisions that apply, and any conflict> | none apply | no Serel Memory
-REBASE: <pushed <old sha> -> <new sha> | not performed - <why>>
+REBASE: <pushed <old sha> -> <new sha> | not performed — <why>>
 RANGE-DIFF: <how the new series differs from the old> | not run
-CHECKS: <command - result>, ... | not run
+CHECKS: <command — result>, ... | not run
 UNVERIFIED: <what you could not verify> | nothing
 NEXT: <the remaining decision or work>
 ```
