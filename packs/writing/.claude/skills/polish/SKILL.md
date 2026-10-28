@@ -1,6 +1,6 @@
 ---
 name: polish
-description: "Rewrite the text you name to the house rules and show the diff. Proposes only; never writes. Use when the user asks to polish, tighten, clean up, de-slop, or plain-language a file, a section, a PR description, release notes, or pasted prose."
+description: "Rewrite the text you name to the project's house rules and show the diff. Proposes only; never writes anything. Use when the user asks to polish, tighten, clean up, de-slop, or plain-language a file, a section, a PR description, release notes, or pasted prose."
 ---
 
 # Polish
