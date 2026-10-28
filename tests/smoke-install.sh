@@ -213,7 +213,8 @@ memory_project() {
   git -C "$memory" archive --format=tar HEAD | tar -x -C "$1"
   printf '{ "upstream": "madeordinary/serel-memory", "ref": "smoke", "linked": false }\n' \
     >"$1/.serel-memory.json"
-  git -C "$1" add -A
+  # A developer's global excludes must not decide what is committed.
+  git -C "$1" -c core.excludesFile=/dev/null add -A
   git -C "$1" -c user.name="Serel Kit smoke" -c user.email=smoke@example.invalid \
     -c commit.gpgsign=false commit -q --no-verify -m "Serel Memory"
   git -C "$1" update-ref refs/serel-memory/anchor HEAD
@@ -296,7 +297,7 @@ else
 
   # A shared install is committed with the project. Track the Kit files, as a
   # team would, so the drift checker's baseline diff really sees them.
-  git -C "$proj" add .claude .agents .serel-kit.json
+  git -C "$proj" -c core.excludesFile=/dev/null add .claude .agents .serel-kit.json
   memory_check "$proj" "$tmproot/drift-after.log"
   drift_unchanged "$tmproot/drift-before.log" "$tmproot/drift-after.log" "a tracked install"
   # A customized Kit copy is the project's business, not a Memory finding:

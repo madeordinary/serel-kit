@@ -480,6 +480,17 @@ for p in "${packs[@]}"; do
     if [ "$(cat "$base")" = "null" ]; then
       legacy_baseline "$p" "$(jq -r --arg p "$p" '.installed[$p].version' "$work/receipt-new.json")" "$base"
     fi
+  elif jq -e --arg p "$p" '(.packs // []) | index($p) != null' "$work/receipt-old.json" >/dev/null; then
+    # A plain install over an older install of this pack would add the skill
+    # beside its old command and drop the command from the receipt, so no
+    # later upgrade could retire it. Only --upgrade retires it.
+    for entry in "${RETIRED_COMMANDS[@]}"; do
+      read -r mapped_pack old_command _ <<<"$entry"
+      [ "$mapped_pack" = "$p" ] || continue
+      if [ -e "$target/$old_command" ] || [ -L "$target/$old_command" ]; then
+        die "pack '$p' is already installed and still has $old_command, the Claude command its skill replaces. Run: install.sh $target --packs $p --upgrade (then add --apply). Nothing was written."
+      fi
+    done
   fi
   # Reject links (including linked directories) and special files before find
   # can silently omit them. The trusted source is then copied into staging.

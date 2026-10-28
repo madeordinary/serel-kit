@@ -566,4 +566,24 @@ printf '\nMy skill rule.\n' | tee -a "$rec_skill/$copy_path" >>"$rec_skill/$skil
 upgrade_apply "$rec_skill"
 grep -q 'nothing to do' "$tmp/apply.log" || bad "Codex-only recovery did not converge"
 
+echo "case 10: a plain install over an older install of the pack sends the user to --upgrade"
+plain="$tmp/plain-over-old"
+install_old v0.3.0 "$plain" --packs writing
+expect_refused "$plain" --packs writing
+grep -qF "still has $command_path" "$tmp/refused.log" || bad "a plain install over 0.3.0 was not refused"
+grep -qF -- "--packs writing --upgrade" "$tmp/refused.log" || bad "the refusal did not point at --upgrade"
+expect_refused "$plain" --packs writing,verify
+plain_legacy="$tmp/plain-over-legacy"
+install_old v0.1.0 "$plain_legacy" --packs writing
+expect_refused "$plain_legacy" --packs writing
+plain_local="$tmp/plain-over-local"
+install_old v0.3.0 "$plain_local" --packs writing --local --apply
+expect_refused "$plain_local" --packs writing
+expect_refused "$plain_local" --packs writing --apply
+grep -qF "still has $command_path" "$tmp/refused.log" || bad "a plain local run over 0.3.0 was not refused"
+# Once the command is gone, adding another pack is an ordinary install.
+upgrade_apply "$plain"
+bash "$incoming/install.sh" "$plain" --packs writing,verify >"$tmp/plain.log" 2>&1 ||
+  { cat "$tmp/plain.log"; bad "a plain install after the upgrade failed"; }
+
 echo "smoke-upgrade OK: historical installs, removals, stops, ownership, refusal, rollback, and recovery"
