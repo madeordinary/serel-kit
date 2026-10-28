@@ -50,6 +50,12 @@ The two `SKILL.md` files are the same text: the first is the source, and Codex
 reads it. Claude Code reads the second, a copy. If you customize one, change
 the other the same way.
 
+Upgrading from 0.3.0 or older retires the old `.claude/commands/polish.md`.
+The `--upgrade` preview shows it as `REMOVE`. If you changed that command, the
+preview shows `MODIFIED` and the upgrade stops with nothing written. The
+recovery steps are in [If an upgrade stops on a customized command](../../README.md#if-an-upgrade-stops-on-a-customized-command) in the main README. If Serel Memory is installed
+too, upgrade it to 0.8.0 first.
+
 `RULES.md` is yours after install. Edit it. The rules that survive contact
 with your project are the ones worth keeping.
 
