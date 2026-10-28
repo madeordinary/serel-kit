@@ -61,11 +61,15 @@ Serel Memory's install instructions. Nothing is written.
 Installs four files:
 
 ```text
-.claude/commands/verify-map.md
 .agents/skills/verify-map/SKILL.md
 .agents/skills/verify-map/agents/openai.yaml
 .agents/skills/verify-map/TEMPLATE.md
+.claude/skills/verify-map/SKILL.md
 ```
+
+The two `SKILL.md` files are the same text: the first is the source, and Codex
+reads it. Claude Code reads the second, a copy. If you customize one, change
+the other the same way.
 
 ## How reviews find these files
 
@@ -85,9 +89,9 @@ If you want it enforced rather than found, that is a change to your own copy of
 
 ## Acceptance exercise
 
-Automated tests prove the pack installs and that both adapters are present and
-paired. They cannot prove the workflow behaves the same way in both CLIs — a
-person has to check that. Run this once per CLI in a fresh session, in a repo
+Automated tests prove the pack installs and that the Claude Code copy is
+byte-identical to its source. Both CLIs run the same text, but no test can
+prove they behave the same way — a person has to check that. Run this once per CLI in a fresh session, in a repo
 that has Serel Memory with an initialized bank.
 
 ### In Claude Code
@@ -109,7 +113,7 @@ Expect:
   with `+` — with Recipe and Records as separate sections.
 - Launch commands that actually exist in the repo — check one against the
   project README.
-- `RECORDS: none - this feature is unverified`, because you have not run it.
+- `RECORDS: none — this feature is unverified`, because you have not run it.
 - A question: "Write this file?"
 
 Answer yes. Afterwards `memory-bank/verification/<feature>.md` exists, and
