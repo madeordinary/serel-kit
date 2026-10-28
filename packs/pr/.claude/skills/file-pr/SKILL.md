@@ -1,6 +1,6 @@
 ---
 name: file-pr
-description: "Open a real pull request for the current branch, with a title that says why it matters and a description that starts with the problem. Never merges."
+description: "Open a real pull request for the current branch, with a title that says why the change matters and a description that starts with the problem. Use when the user asks to file, open, or create a PR. Never merges and never opens a draft."
 ---
 
 # File PR
