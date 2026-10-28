@@ -30,8 +30,8 @@ export GIT_CONFIG_GLOBAL="$tmp/gitconfig" GIT_CONFIG_NOSYSTEM=1 XDG_CONFIG_HOME=
 
 header="$(sed -n 's/^EXCLUDE_HEADER="\(.*\)"$/\1/p' "$KIT/install.sh")"
 [ -n "$header" ] || bad "could not read EXCLUDE_HEADER from install.sh"
-WRITING=".claude/commands/polish.md .agents/skills/polish/SKILL.md .agents/skills/polish/RULES.md .agents/skills/polish/agents/openai.yaml"
-VERIFY=".claude/commands/verify-map.md .agents/skills/verify-map/SKILL.md .agents/skills/verify-map/TEMPLATE.md .agents/skills/verify-map/agents/openai.yaml"
+WRITING=".claude/skills/polish/SKILL.md .agents/skills/polish/SKILL.md .agents/skills/polish/RULES.md .agents/skills/polish/agents/openai.yaml"
+VERIFY=".claude/skills/verify-map/SKILL.md .agents/skills/verify-map/SKILL.md .agents/skills/verify-map/TEMPLATE.md .agents/skills/verify-map/agents/openai.yaml"
 
 snapshot() {
   (
@@ -103,7 +103,7 @@ diff_before="$(git -C "$repo" diff; git -C "$repo" diff --cached)"
 before="$(state "$repo")"
 run "$tmp/preview.log" "$repo" --packs writing --local
 [ "$(state "$repo")" = "$before" ] || bad "local preview wrote something"
-grep -qF 'ADD        .claude/commands/polish.md' "$tmp/preview.log" || bad "preview omitted a file"
+grep -qF 'ADD        .claude/skills/polish/SKILL.md' "$tmp/preview.log" || bad "preview omitted a file"
 grep -qF 'EXCLUDE    /.serel-kit.json' "$tmp/preview.log" || bad "preview omitted the receipt exclusion"
 run "$tmp/apply.log" "$repo" --packs writing --local --apply
 # shellcheck disable=SC2086
@@ -148,7 +148,7 @@ cp "$exclude" "$tmp/exclude-before"
 before="$(state "$shared_memory")"
 run "$tmp/add-preview.log" "$shared_memory" --packs verify
 [ "$(state "$shared_memory")" = "$before" ] || bad "inherited preview wrote something"
-grep -qF 'EXCLUDE    /.claude/commands/verify-map.md' "$tmp/add-preview.log" || bad "added pack not excluded"
+grep -qF 'EXCLUDE    /.claude/skills/verify-map/SKILL.md' "$tmp/add-preview.log" || bad "added pack not excluded"
 run "$tmp/add.log" "$shared_memory" --packs verify --apply
 jq -e '.owner == "keep" and .local == true' "$shared_memory/.serel-kit.json" >/dev/null ||
   bad "adding a pack lost receipt metadata or local mode"
@@ -169,7 +169,8 @@ fi
 incoming="$tmp/incoming"
 mkdir "$incoming"
 cp -R "$KIT/install.sh" "$KIT/packs" "$incoming/"
-printf '\nSynthetic upstream change.\n' >>"$incoming/packs/writing/.claude/commands/polish.md"
+printf '\nSynthetic upstream change.\n' >>"$incoming/packs/writing/.agents/skills/polish/SKILL.md"
+cp "$incoming/packs/writing/.agents/skills/polish/SKILL.md" "$incoming/packs/writing/.claude/skills/polish/SKILL.md"
 printf 'Synthetic added resource.\n' >"$incoming/packs/writing/.agents/skills/polish/EXTRA.md"
 before="$(state "$shared_memory")"
 bash "$incoming/install.sh" "$shared_memory" --packs writing --upgrade >"$tmp/up-preview.log" 2>&1 ||
@@ -178,11 +179,11 @@ bash "$incoming/install.sh" "$shared_memory" --packs writing --upgrade >"$tmp/up
 grep -qF 'EXCLUDE    /.agents/skills/polish/EXTRA.md' "$tmp/up-preview.log" || bad "upgrade addition not excluded"
 bash "$incoming/install.sh" "$shared_memory" --packs writing --upgrade --apply >"$tmp/up.log" 2>&1 ||
   { cat "$tmp/up.log"; bad "local upgrade failed"; }
-all_ignored "$shared_memory" .agents/skills/polish/EXTRA.md .claude/commands/polish.md
+all_ignored "$shared_memory" .agents/skills/polish/EXTRA.md .claude/skills/polish/SKILL.md
 [ "$(tail -n 1 "$exclude")" = /.agents/skills/polish/EXTRA.md ] &&
   [ "$(grep -cxF "$header" "$exclude")" = 2 ] || bad "upgrade did not continue Kit's own final block"
-cmp -s "$shared_memory/.claude/commands/polish.md" "$incoming/packs/writing/.claude/commands/polish.md" ||
-  bad "upgrade did not update the command"
+cmp -s "$shared_memory/.claude/skills/polish/SKILL.md" "$incoming/packs/writing/.claude/skills/polish/SKILL.md" ||
+  bad "upgrade did not update the Claude copy"
 [ -z "$(visible "$shared_memory")" ] || bad "upgrade left a Kit file visible to Git"
 
 echo "case 3: a linked worktree uses its repository's shared info/exclude"
@@ -208,8 +209,8 @@ all_ignored "$tmp/worktree" $WRITING .serel-kit.json
 echo "case 4: tracked Kit paths and shared-to-local switches are refused"
 tracked="$tmp/tracked"
 new_repo "$tracked"
-mkdir -p "$tracked/.claude/commands"
-cp "$KIT/packs/writing/.claude/commands/polish.md" "$tracked/.claude/commands/polish.md"
+mkdir -p "$tracked/.claude/skills/polish"
+cp "$KIT/packs/writing/.claude/skills/polish/SKILL.md" "$tracked/.claude/skills/polish/SKILL.md"
 git -C "$tracked" add .claude
 git -C "$tracked" commit -qm identical
 refused "$tracked" --packs writing --local
@@ -223,13 +224,13 @@ refused "$staged" --packs writing --local --apply
 grep -q 'TRACKED' "$tmp/refused.log" || bad "staged receipt not reported"
 variant="$tmp/variant"
 new_repo "$variant"
-mkdir -p "$variant/.Claude/commands"
-cp "$KIT/packs/writing/.claude/commands/polish.md" "$variant/.Claude/commands/polish.md"
+mkdir -p "$variant/.Claude/skills/polish"
+cp "$KIT/packs/writing/.claude/skills/polish/SKILL.md" "$variant/.Claude/skills/polish/SKILL.md"
 git -C "$variant" add .Claude
 rm -r "$variant/.Claude" # Index only: case 9 covers a case variant on disk.
 refused "$variant" --packs writing --local --apply
 grep -q 'TRACKED' "$tmp/refused.log" || bad "case-variant tracked path not reported"
-git -C "$repo" add -f .claude/commands/polish.md
+git -C "$repo" add -f .claude/skills/polish/SKILL.md
 refused "$repo" --packs writing --apply
 grep -q 'TRACKED' "$tmp/refused.log" || bad "force-added Kit file not reported"
 shared="$tmp/shared"
@@ -245,9 +246,9 @@ refused "$shared" --packs writing --apply
 echo "case 5: an ignore rule that re-includes a Kit path is refused"
 negated="$tmp/negated"
 new_repo "$negated"
-printf '!/.claude/commands/polish.md\n' >"$negated/.gitignore"
+printf '!/.claude/skills/polish/SKILL.md\n' >"$negated/.gitignore"
 refused "$negated" --packs writing --local
-grep -qF '.gitignore:1:!/.claude/commands/polish.md' "$tmp/refused.log" || bad "negation source not named"
+grep -qF '.gitignore:1:!/.claude/skills/polish/SKILL.md' "$tmp/refused.log" || bad "negation source not named"
 refused "$negated" --packs writing --local --apply
 rm "$negated/.gitignore"
 mkdir "$negated/.agents"
@@ -257,7 +258,7 @@ rm -r "$negated/.agents"
 printf '!/.serel-kit.json\n' >>"$(exclude_of "$negated")"
 refused "$negated" --packs writing --local --apply
 printf '!/.agents/skills/polish/RULES.md\n' >"$repo/.gitignore"
-git -C "$repo" reset -q -- .claude/commands/polish.md
+git -C "$repo" reset -q -- .claude/skills/polish/SKILL.md
 refused "$repo" --packs writing --apply
 grep -q 'VISIBLE' "$tmp/refused.log" || bad "rerun did not recheck ignore rules"
 
@@ -342,7 +343,7 @@ fail_copy "$rollback" .serel-kit.json "$tmp/failed-receipt" "$KIT/install.sh" --
 no_info="$tmp/no-info"
 new_repo "$no_info"
 rm -r "$no_info/.git/info"
-fail_copy "$no_info" .claude/commands/polish.md "$tmp/failed-payload" "$KIT/install.sh" --packs writing --local --apply
+fail_copy "$no_info" .claude/skills/polish/SKILL.md "$tmp/failed-payload" "$KIT/install.sh" --packs writing --local --apply
 [ ! -e "$no_info/.git/info" ] || bad "rollback left a created info directory"
 # A local upgrade that has already updated one file, added another, and
 # excluded the addition fails on the receipt. state covers the payload, the
@@ -356,7 +357,7 @@ printf 'staged\n' >"$local_upgrade/staged.txt"
 git -C "$local_upgrade" add staged.txt
 printf 'untracked\n' >"$local_upgrade/notes.txt"
 fail_copy "$local_upgrade" .serel-kit.json "$tmp/failed-upgrade-receipt" "$incoming/install.sh" --packs writing --upgrade --apply
-for line in 'UPDATE     .claude/commands/polish.md' 'ADD        .agents/skills/polish/EXTRA.md' \
+for line in 'UPDATE     .claude/skills/polish/SKILL.md' 'ADD        .agents/skills/polish/EXTRA.md' \
   'EXCLUDE    /.agents/skills/polish/EXTRA.md'; do
   grep -qF -- "$line" "$tmp/fail.log" || bad "local upgrade rollback did not exercise: $line"
 done
@@ -447,4 +448,68 @@ else
     bad "a case-variant user file changed"
 fi
 
-echo "smoke-local OK: preview, exact exclusions, inheritance, worktrees, refusals, and rollback"
+echo "case 10: upgrading a Kit 0.3.0 local install removes its retired command, never a tracked one"
+# The installs come from Kit 0.3.0's own installer, so the receipt and the
+# exclusions are exactly what that release wrote.
+git -C "$KIT" rev-parse --verify -q 'refs/tags/v0.3.0^{commit}' >/dev/null ||
+  bad "fixture tag v0.3.0 is missing: run git fetch --tags"
+old_kit="$tmp/kit-v0.3.0"
+mkdir "$old_kit"
+git -C "$KIT" archive v0.3.0 | tar -x -C "$old_kit"
+retired_command=.claude/commands/polish.md
+legacy="$tmp/legacy-local"
+new_repo "$legacy"
+bash "$old_kit/install.sh" "$legacy" --packs writing --local --apply >"$tmp/legacy-install.log" 2>&1 ||
+  { cat "$tmp/legacy-install.log"; bad "Kit 0.3.0 local install"; }
+[ -f "$legacy/$retired_command" ] || bad "Kit 0.3.0 did not install $retired_command"
+exclude="$(exclude_of "$legacy")"
+grep -qxF "/$retired_command" "$exclude" || bad "Kit 0.3.0 did not exclude $retired_command"
+# A local command later force-added to Git: removing it would change what is
+# shared, so the upgrade is refused before anything is written.
+git -C "$legacy" add -f "$retired_command"
+refused "$legacy" --packs writing --upgrade --apply
+grep -qF "TRACKED    $retired_command" "$tmp/refused.log" || bad "tracked retired command not reported"
+refused "$legacy" --packs writing --upgrade
+git -C "$legacy" rm -q --cached "$retired_command"
+cp "$exclude" "$tmp/exclude-before"
+before="$(state "$legacy")"
+run "$tmp/legacy-preview.log" "$legacy" --packs writing --upgrade
+[ "$(state "$legacy")" = "$before" ] || bad "local upgrade preview wrote something"
+grep -qF "REMOVE     $retired_command" "$tmp/legacy-preview.log" || bad "preview did not show the removal"
+run "$tmp/legacy-upgrade.log" "$legacy" --packs writing --upgrade --apply
+[ ! -e "$legacy/$retired_command" ] || bad "unmodified retired command not removed"
+# shellcheck disable=SC2086
+all_ignored "$legacy" $WRITING .serel-kit.json
+[ -z "$(visible "$legacy")" ] || bad "local upgrade left something visible to Git"
+# Exclusions are only ever added: the old line stays, and nothing else moved.
+[ "$(head -c "$(wc -c <"$tmp/exclude-before")" "$exclude")" = "$(cat "$tmp/exclude-before")" ] ||
+  bad "local upgrade rewrote existing exclusions"
+grep -qxF "/$retired_command" "$exclude" || bad "local upgrade removed the retired command's exclusion"
+grep -qxF "/.claude/skills/polish/SKILL.md" "$exclude" || bad "local upgrade did not exclude the new Claude copy"
+
+echo "case 11: linked worktrees share info/exclude, so a removal leaves the other worktree's lines"
+shared_main="$tmp/shared-main"
+new_repo "$shared_main"
+git -C "$shared_main" worktree add -q -b side "$tmp/shared-side"
+for wt in "$shared_main" "$tmp/shared-side"; do
+  bash "$old_kit/install.sh" "$wt" --packs writing --local --apply >"$tmp/wt-install.log" 2>&1 ||
+    { cat "$tmp/wt-install.log"; bad "Kit 0.3.0 local install in $wt"; }
+done
+exclude="$(exclude_of "$tmp/shared-side")"
+[ "$exclude" = "$(exclude_of "$shared_main")" ] || bad "fixture worktrees do not share info/exclude"
+side_before="$(snapshot "$tmp/shared-side")"
+run "$tmp/wt-upgrade.log" "$shared_main" --packs writing --upgrade --apply
+[ ! -e "$shared_main/$retired_command" ] || bad "main worktree kept its retired command"
+[ "$(snapshot "$tmp/shared-side")" = "$side_before" ] || bad "upgrading main changed the other worktree"
+git -C "$tmp/shared-side" check-ignore -q -- "$retired_command" ||
+  bad "the other worktree's retired command became visible to Git"
+[ -z "$(visible "$tmp/shared-side")" ] || bad "the other worktree shows Kit files"
+[ -z "$(visible "$shared_main")" ] || bad "main worktree shows Kit files"
+run "$tmp/wt-upgrade-side.log" "$tmp/shared-side" --packs writing --upgrade --apply
+[ ! -e "$tmp/shared-side/$retired_command" ] || bad "side worktree kept its retired command"
+for path in $WRITING .serel-kit.json "$retired_command"; do
+  [ "$(grep -cxF "/$path" "$exclude")" = 1 ] || bad "shared exclusion for $path is missing or duplicated"
+done
+[ -z "$(visible "$tmp/shared-side")" ] || bad "side worktree shows Kit files after its upgrade"
+
+echo "smoke-local OK: preview, exact exclusions, inheritance, worktrees, refusals, rollback, and retired commands"

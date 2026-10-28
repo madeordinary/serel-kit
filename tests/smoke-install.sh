@@ -8,14 +8,18 @@
 #      a malformed receipt, a symlinked destination ancestor, and a file
 #      standing where a directory belongs each stop the run with zero writes.
 #   2. A git repo with Serel Memory scaffolded from the sibling repo's HEAD
-#      (git archive + a fresh anchor): both packs install, Serel Memory's own
-#      check-readlist and check-parity still pass afterwards, and the bank,
-#      .rules, AGENTS.md, CLAUDE.md and the anchor are byte-identical.
+#      (git archive, committed, plus a fresh anchor whose baseline resolves):
+#      both packs install, Serel Memory's own check-readlist and
+#      check-single-source still pass afterwards, its drift checker
+#      (bin/serel-memory check) reports exactly what it reported before and
+#      nothing about a Kit path, and the bank, .rules, AGENTS.md, CLAUDE.md
+#      and the anchor are byte-identical. The same holds for a local
+#      (Git-excluded) install beside Memory.
 #   3. Re-running with the same packs changes nothing and exits 0.
 #   4. A locally modified pack file is a CONFLICT: exit 1, and a file earlier in
 #      traversal order that would otherwise have been copied is still not there.
 #
-# Cases 2-4 need the sibling Serel Memory repo. Set SEREL_MEMORY_REPO to point
+# Cases 2-5 need the sibling Serel Memory repo. Set SEREL_MEMORY_REPO to point
 # at it, or keep it checked out next to this one as ../memory. Without it those
 # cases are skipped, the run says PARTIAL and exits non-zero — set
 # SEREL_KIT_ALLOW_PARTIAL=1 to accept a partial local run.
@@ -96,12 +100,12 @@ new_repo() {
   git -C "$1" init -q
 }
 
-WRITING_FILES=".claude/commands/polish.md
+WRITING_FILES=".claude/skills/polish/SKILL.md
 .agents/skills/polish/SKILL.md
 .agents/skills/polish/agents/openai.yaml
 .agents/skills/polish/RULES.md"
 
-VERIFY_FILES=".claude/commands/verify-map.md
+VERIFY_FILES=".claude/skills/verify-map/SKILL.md
 .agents/skills/verify-map/SKILL.md
 .agents/skills/verify-map/agents/openai.yaml
 .agents/skills/verify-map/TEMPLATE.md"
@@ -198,20 +202,56 @@ grep -q 'UNSAFE PATH' "$tmproot/blocked.log" || bad "the blocked-directory run d
 [ ! -e "$blocked/.agents" ] || bad "the blocked-directory run copied the .agents payload before failing"
 [ "$(snapshot "$blocked")" = "$before_blocked" ] || bad "the blocked-directory run wrote to the target"
 
-# --- cases 2-4: a repo with Serel Memory -------------------------------------
+# --- cases 2-5: a repo with Serel Memory -------------------------------------
+
+# memory_project <dir>: Serel Memory exported from the checkout's HEAD and
+# committed, with an anchor (export-ignored upstream; a real install writes
+# its own). refs/serel-memory/anchor points at that commit, so the drift
+# checker has a baseline to compare the framework files against.
+memory_project() {
+  new_repo "$1"
+  git -C "$memory" archive --format=tar HEAD | tar -x -C "$1"
+  printf '{ "upstream": "madeordinary/serel-memory", "ref": "smoke", "linked": false }\n' \
+    >"$1/.serel-memory.json"
+  git -C "$1" add -A
+  git -C "$1" -c user.name="Serel Kit smoke" -c user.email=smoke@example.invalid \
+    -c commit.gpgsign=false commit -q --no-verify -m "Serel Memory"
+  git -C "$1" update-ref refs/serel-memory/anchor HEAD
+}
+
+# memory_check <dir> <log>: Serel Memory's drift checker, read-only. Its exit
+# status reflects the bank fixture, not Kit, so the findings are what count.
+memory_check() {
+  local rc=0
+  (cd "$1" && bash bin/serel-memory check --root "$1") >"$2" 2>&1 || rc=$?
+  printf 'exit %d\n' "$rc" >>"$2"
+}
+
+# drift_unchanged <before> <after> <what>: the checker compared the framework
+# files against the baseline both times, Kit changed none of its findings,
+# and no finding names a Kit workflow's path.
+drift_unchanged() {
+  grep -q 'baseline: refs/serel-memory/anchor' "$2" ||
+    { cat "$2"; bad "the drift checker did not compare against the anchor baseline after $3"; }
+  cmp -s "$1" "$2" ||
+    { diff "$1" "$2" || true; bad "the drift checker's findings changed after $3"; }
+  if grep -E '(\.claude|\.agents)/skills/(polish|verify-map|file-pr|babysit-pr|modernize-pr|pr-comment)(/|$)|\.claude/commands/(polish|verify-map|file-pr|babysit-pr|modernize-pr|pr-comment)\.md|\.serel-kit\.json' "$2"; then
+    bad "the drift checker reported a Kit path after $3"
+  fi
+}
 
 memory=""
 if [ -n "${SEREL_MEMORY_REPO:-}" ]; then
   memory="$SEREL_MEMORY_REPO"
   if ! git -C "$memory" rev-parse --git-dir >/dev/null 2>&1 ||
-    [ ! -f "$memory/tests/check-parity.sh" ]; then
+    [ ! -f "$memory/tests/check-single-source.sh" ]; then
     echo "FAIL: SEREL_MEMORY_REPO=$memory is not a Serel Memory checkout"
     exit 1
   fi
 else
   for candidate in "$KIT/../memory" "$KIT/../serel-memory"; do
     if git -C "$candidate" rev-parse --git-dir >/dev/null 2>&1 &&
-      [ -f "$candidate/tests/check-parity.sh" ]; then
+      [ -f "$candidate/tests/check-single-source.sh" ]; then
       memory="$candidate"
       break
     fi
@@ -221,15 +261,12 @@ fi
 partial=0
 if [ -z "$memory" ]; then
   partial=1
-  echo "SKIP: cases 2-4 need the sibling Serel Memory repo (set SEREL_MEMORY_REPO)"
+  echo "SKIP: cases 2-5 need the sibling Serel Memory repo (set SEREL_MEMORY_REPO)"
 else
   echo "case 2: repo with Serel Memory from $(cd "$memory" && pwd) HEAD"
   proj="$tmproot/with-memory"
-  new_repo "$proj"
-  git -C "$memory" archive --format=tar HEAD | tar -x -C "$proj"
-  # The anchor is export-ignored upstream; a real install writes its own.
-  printf '{ "upstream": "madeordinary/serel-memory", "ref": "smoke", "linked": false }\n' \
-    >"$proj/.serel-memory.json"
+  memory_project "$proj"
+  memory_check "$proj" "$tmproot/drift-before.log"
 
   guard_before="$(guarded "$proj")"
 
@@ -237,7 +274,7 @@ else
     bad "the writing pack failed to install into a Serel Memory repo"
   # shellcheck disable=SC2086
   expect_files "$proj" $WRITING_FILES
-  polish_before="$(cd "$proj" && find .claude/commands/polish.md .agents/skills/polish \
+  polish_before="$(cd "$proj" && find .claude/skills/polish .agents/skills/polish \
     -type f -exec cksum {} + | sort)"
 
   # Adding a pack adds only that pack.
@@ -245,7 +282,7 @@ else
     bad "the verify pack failed to install into a Serel Memory repo"
   # shellcheck disable=SC2086
   expect_files "$proj" $VERIFY_FILES
-  polish_after="$(cd "$proj" && find .claude/commands/polish.md .agents/skills/polish \
+  polish_after="$(cd "$proj" && find .claude/skills/polish .agents/skills/polish \
     -type f -exec cksum {} + | sort)"
   [ "$polish_after" = "$polish_before" ] || bad "installing verify rewrote the writing pack's files"
   [ "$(receipt_packs "$proj")" = "verify,writing" ] ||
@@ -254,8 +291,20 @@ else
   # Serel Memory's own framework checks must still pass with the packs in place.
   bash "$proj/tests/check-readlist.sh" >"$tmproot/readlist.log" 2>&1 ||
     bad "Serel Memory's check-readlist.sh fails after installing the packs"
-  bash "$proj/tests/check-parity.sh" >"$tmproot/parity.log" 2>&1 ||
-    bad "Serel Memory's check-parity.sh fails after installing the packs"
+  bash "$proj/tests/check-single-source.sh" >"$tmproot/single-source.log" 2>&1 ||
+    { cat "$tmproot/single-source.log"; bad "Serel Memory's check-single-source.sh fails after installing the packs"; }
+
+  # A shared install is committed with the project. Track the Kit files, as a
+  # team would, so the drift checker's baseline diff really sees them.
+  git -C "$proj" add .claude .agents .serel-kit.json
+  memory_check "$proj" "$tmproot/drift-after.log"
+  drift_unchanged "$tmproot/drift-before.log" "$tmproot/drift-after.log" "a tracked install"
+  # A customized Kit copy is the project's business, not a Memory finding:
+  # Memory reports differing copies only for workflows it ships.
+  printf '\nproject customization\n' >>"$proj/.claude/skills/polish/SKILL.md"
+  memory_check "$proj" "$tmproot/drift-custom.log"
+  drift_unchanged "$tmproot/drift-before.log" "$tmproot/drift-custom.log" "customizing a Kit copy"
+  cp "$KIT/packs/writing/.claude/skills/polish/SKILL.md" "$proj/.claude/skills/polish/SKILL.md"
 
   [ "$(guarded "$proj")" = "$guard_before" ] ||
     bad "the install changed the memory bank, .rules, AGENTS.md, CLAUDE.md, or the anchor"
@@ -276,17 +325,33 @@ else
   # have written it by the time it met the conflict. Its absence afterwards is
   # what proves the preflight is complete before any write.
   rm "$proj/.agents/skills/polish/RULES.md"
-  printf '\nlocal edit that upstream does not have\n' >>"$proj/.claude/commands/polish.md"
+  printf '\nlocal edit that upstream does not have\n' >>"$proj/.claude/skills/polish/SKILL.md"
   pre_conflict="$(snapshot "$proj")"
   if bash "$KIT/install.sh" "$proj" --packs writing,verify >"$tmproot/conflict.log" 2>&1; then
     bad "a divergent local file did not stop the install (expected exit 1)"
   fi
   grep -q 'CONFLICT' "$tmproot/conflict.log" || bad "the conflicting run did not report CONFLICT"
-  grep -q '.claude/commands/polish.md' "$tmproot/conflict.log" ||
+  grep -q '.claude/skills/polish/SKILL.md' "$tmproot/conflict.log" ||
     bad "the conflicting run did not name the file that conflicts"
   [ ! -e "$proj/.agents/skills/polish/RULES.md" ] ||
     bad "the conflicting run copied part of the payload before stopping"
   [ "$(snapshot "$proj")" = "$pre_conflict" ] || bad "the conflicting run wrote to the target"
+
+  echo "case 5: a local install beside Serel Memory leaves its checks and drift findings unchanged"
+  localproj="$tmproot/with-memory-local"
+  memory_project "$localproj"
+  memory_check "$localproj" "$tmproot/drift-local-before.log"
+  bash "$KIT/install.sh" "$localproj" --packs writing,verify --local --apply >"$tmproot/m-local.log" 2>&1 ||
+    { cat "$tmproot/m-local.log"; bad "a local install beside Serel Memory failed"; }
+  # shellcheck disable=SC2086
+  expect_files "$localproj" $WRITING_FILES $VERIFY_FILES
+  for path in $WRITING_FILES $VERIFY_FILES .serel-kit.json; do
+    git -C "$localproj" check-ignore -q -- "$path" || bad "a local install left $path visible to Git"
+  done
+  memory_check "$localproj" "$tmproot/drift-local-after.log"
+  drift_unchanged "$tmproot/drift-local-before.log" "$tmproot/drift-local-after.log" "a local install"
+  bash "$localproj/tests/check-single-source.sh" >"$tmproot/single-source-local.log" 2>&1 ||
+    { cat "$tmproot/single-source-local.log"; bad "Serel Memory's check-single-source.sh fails beside a local install"; }
 fi
 
 if [ "$fail" -ne 0 ]; then
@@ -294,7 +359,7 @@ if [ "$fail" -ne 0 ]; then
 fi
 
 if [ "$partial" -eq 1 ]; then
-  echo "smoke-install PARTIAL: Memory not found, cases 2-4 skipped"
+  echo "smoke-install PARTIAL: Memory not found, cases 2-5 skipped"
   if [ "${SEREL_KIT_ALLOW_PARTIAL:-}" = "1" ]; then
     echo "  accepted because SEREL_KIT_ALLOW_PARTIAL=1"
     exit 0

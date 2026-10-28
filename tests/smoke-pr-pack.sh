@@ -13,7 +13,7 @@
 #   3. A repo with Serel Memory scaffolded from SEREL_MEMORY_REPO (or a sibling
 #      ../memory) HEAD: installing pr changes and removes nothing that was
 #      there, adds only the pack and the receipt, and Serel Memory's own
-#      check-parity and check-readlist still pass.
+#      check-single-source and check-readlist still pass.
 #
 # Case 3 needs a Serel Memory checkout. Without one it is skipped, the run says
 # PARTIAL and exits non-zero; set SEREL_KIT_ALLOW_PARTIAL=1 to accept that.
@@ -99,7 +99,7 @@ expected="$( { printf '%s\n' "$payload" | sed 's|^|./|'; printf './.serel-kit.js
 echo "case 2: pr-wait prints help and rejects bad input without GitHub"
 [ "$(sha256 "$PACK/$PR_WAIT")" = "$PR_WAIT_SHA256" ] ||
   bad "packs/pr/$PR_WAIT no longer matches the upstream sha256 its provenance records"
-for doc in "$PACK/README.md" "$PACK/.claude/commands/babysit-pr.md" "$PACK/.agents/skills/babysit-pr/SKILL.md"; do
+for doc in "$PACK/README.md" "$PACK/.claude/skills/babysit-pr/SKILL.md" "$PACK/.agents/skills/babysit-pr/SKILL.md"; do
   grep -qF "$PR_WAIT_SHA256" "$doc" || bad "${doc#"$KIT"/} does not record pr-wait's sha256"
 done
 
@@ -126,14 +126,14 @@ memory=""
 if [ -n "${SEREL_MEMORY_REPO:-}" ]; then
   memory="$SEREL_MEMORY_REPO"
   if ! git -C "$memory" rev-parse --git-dir >/dev/null 2>&1 ||
-    [ ! -f "$memory/tests/check-parity.sh" ]; then
+    [ ! -f "$memory/tests/check-single-source.sh" ]; then
     echo "FAIL: SEREL_MEMORY_REPO=$memory is not a Serel Memory checkout"
     exit 1
   fi
 else
   for candidate in "$KIT/../memory" "$KIT/../serel-memory"; do
     if git -C "$candidate" rev-parse --git-dir >/dev/null 2>&1 &&
-      [ -f "$candidate/tests/check-parity.sh" ]; then
+      [ -f "$candidate/tests/check-single-source.sh" ]; then
       memory="$candidate"
       break
     fi
@@ -168,8 +168,11 @@ else
     path="${path%% *}"
     path="${path#./}"
     case "$path" in
-      .serel-kit.json | .claude/commands/file-pr.md | .claude/commands/babysit-pr.md | \
-        .claude/commands/modernize-pr.md | .claude/commands/pr-comment.md | \
+      .serel-kit.json | \
+        .claude/skills/file-pr | .claude/skills/file-pr/SKILL.md | \
+        .claude/skills/babysit-pr | .claude/skills/babysit-pr/SKILL.md | \
+        .claude/skills/modernize-pr | .claude/skills/modernize-pr/SKILL.md | \
+        .claude/skills/pr-comment | .claude/skills/pr-comment/SKILL.md | \
         .agents/skills/file-pr | .agents/skills/file-pr/* | \
         .agents/skills/babysit-pr | .agents/skills/babysit-pr/* | \
         .agents/skills/modernize-pr | .agents/skills/modernize-pr/* | \
@@ -186,8 +189,8 @@ else
   done <<<"$payload"
 
   # Serel Memory's own checks must still pass with the pack in place.
-  bash "$proj/tests/check-parity.sh" >"$tmproot/parity.log" 2>&1 ||
-    { cat "$tmproot/parity.log"; bad "Serel Memory's check-parity.sh fails with the pr pack installed"; }
+  bash "$proj/tests/check-single-source.sh" >"$tmproot/single-source.log" 2>&1 ||
+    { cat "$tmproot/single-source.log"; bad "Serel Memory's check-single-source.sh fails with the pr pack installed"; }
   bash "$proj/tests/check-readlist.sh" >"$tmproot/readlist.log" 2>&1 ||
     { cat "$tmproot/readlist.log"; bad "Serel Memory's check-readlist.sh fails with the pr pack installed"; }
 fi
