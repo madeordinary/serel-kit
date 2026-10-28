@@ -56,7 +56,9 @@ has a separate limit:
 - The default branch:
   `gh api repos/<owner>/<repo> --jq .default_branch`.
 - An open PR for the branch:
-  `gh api "repos/<owner>/<repo>/pulls?head=<head-owner>:<branch>&state=open"`.
+  `gh api -X GET repos/<owner>/<repo>/pulls -f head=<head-owner>:<branch> -f state=open`.
+  The `-f` fields are URL-encoded, so a branch name with a character such
+  as `+` still matches.
   `<head-owner>` owns the repository the branch was pushed to: the fork's
   owner for a fork, otherwise `<owner>`. An empty list means none is open.
 - Recent merged titles:
