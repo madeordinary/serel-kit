@@ -136,6 +136,9 @@ Rules:
   - During installation an existing file is never overwritten. A file that differs from the pack
     is a conflict: the run stops and writes nothing.
   - Re-running with the same packs changes nothing and exits 0.
+  - An upgrade removes a Claude command that Kit 0.4.0 replaced with a skill
+    (.claude/commands/<name>.md) only when it is exactly as Kit installed it.
+    A changed one stops the upgrade and prints how to keep your changes.
   - The receipt records a local install. Later runs stay local and preview
     until --apply, with or without --local. A shared install never becomes
     local, and a Kit path Git tracks is refused.

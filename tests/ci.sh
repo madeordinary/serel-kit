@@ -13,15 +13,19 @@ trap 'rm -rf "$tmp"' EXIT
 
 checks() {
   command -v jq >/dev/null || { echo "Install jq before running the checks." >&2; exit 1; }
-  # Full history and the release tag also support the upgrade suite when present.
+  # Full history and the release tags support the upgrade suites.
   if [ "$(git rev-parse --is-shallow-repository)" = true ]; then
     echo "Checks need full history: run git fetch --unshallow --tags." >&2
     exit 1
   fi
-  git rev-parse --verify 'refs/tags/v0.1.0^{commit}' >/dev/null || {
-    echo "Missing fixture tag v0.1.0: run git fetch origin --tags." >&2
-    exit 1
-  }
+  # The upgrade suites install each release with its own installer, and
+  # check-packs regenerates the retired commands' hashes from the tags.
+  for tag in v0.1.0 v0.2.0 v0.3.0; do
+    git rev-parse --verify "refs/tags/$tag^{commit}" >/dev/null || {
+      echo "Missing fixture tag $tag: run git fetch origin --tags." >&2
+      exit 1
+    }
+  done
   shellcheck_bin="$(bash .github/ci/shellcheck.sh "$tmp")"
   printf 'ShellCheck: %s\n' "$shellcheck_bin"
   "$shellcheck_bin" --version
