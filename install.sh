@@ -301,6 +301,14 @@ written=()
 created_dirs=()
 watch_rel=()
 watch_hash=()
+# Retired commands this upgrade removes, their hashes as previewed, and the
+# ones already removed (for rollback).
+remove_rel=()
+remove_hash=()
+removed=()
+# Mapped commands of the packs being upgraded, removed or not: in local mode
+# Git must not track them either.
+retired_paths=()
 applying=0
 success=0
 # Local mode only: Git's exclude file, and what this run did to it.
@@ -326,6 +334,12 @@ cleanup() {
       else
         rm -f "$target/$rel"
       fi
+    done
+    # Removals ran before any payload write, so they are restored after.
+    for ((n = ${#removed[@]} - 1; n >= 0; n--)); do
+      rel="${remove_rel[${removed[$n]}]}"
+      cp -p "$work/backups/removed-${removed[$n]}" "$target/$rel" ||
+        printf 'RESTORE FAILED: %s (backup: %s)\n' "$rel" "$work/backups/removed-${removed[$n]}" >&2
     done
     for ((n = ${#created_dirs[@]} - 1; n >= 0; n--)); do
       rmdir "$target/${created_dirs[$n]}" 2>/dev/null
@@ -449,6 +463,8 @@ conflicts=0
 identical=0
 kept=0
 retired=0
+modified=0
+: >"$work/modified"
 for p in "${packs[@]}"; do
   base="$work/base-$p.json"
   incoming="$work/incoming-$p.json"
@@ -534,9 +550,49 @@ for p in "${packs[@]}"; do
     fi
   done <"$work/payload"
   jq -r --slurpfile next "$incoming" 'keys[] | select($next[0][.] == null)' "$base" >"$work/retired"
+  base_version="$(jq -r --arg p "$p" '.installed[$p].version // ""' "$work/receipt-new.json")"
   while IFS= read -r rel; do
-    printf '  RETIRED    %s (left as-is; no longer managed)\n' "$rel"
-    retired=$((retired + 1))
+    # Only a mapped command of this very pack may be removed. Any other path
+    # a baseline names (another pack's, Serel Memory's, the project's) is
+    # left as it is. A command the baseline does not list never gets here:
+    # unknown ownership is not Kit's to remove.
+    mapped="$(retired_command "$rel" || true)"
+    if [ -z "$mapped" ] || [ "${mapped%% *}" != "$p" ]; then
+      printf '  RETIRED    %s (left as-is; no longer managed)\n' "$rel"
+      retired=$((retired + 1))
+      continue
+    fi
+    new_copy="${mapped#* }"
+    retired_paths+=("$rel")
+    # The same path, link and case checks as an incoming file; the hash seen
+    # here is rechecked before anything is applied.
+    check_path_safety "$rel"
+    local_hash="$(current_hash "$rel")"
+    watch_rel+=("$rel"); watch_hash+=("$local_hash")
+    old="$(jq -r --arg path "$rel" '.[$path]' "$base")"
+    if [ "$local_hash" = "absent" ]; then
+      printf '  %-10s %s (retired command already gone; nothing to remove)\n' ABSENT "$rel"
+    elif ! jq -e --arg path "$rel" --arg p "$p" '
+        ($path | ascii_downcase) as $wanted |
+        [.installed // {} | to_entries[] | select(.key != $p) |
+          .value.files // {} | keys[] | ascii_downcase | select(. == $wanted)] | length == 0
+      ' "$work/receipt-old.json" >/dev/null; then
+      printf '  RETIRED    %s (left as-is; another installed pack records it)\n' "$rel"
+      retired=$((retired + 1))
+    elif ! shipped="$(shipped_tags "$rel" "$old")"; then
+      printf '  RETIRED    %s (left as-is; its recorded bytes match no Kit release)\n' "$rel"
+      retired=$((retired + 1))
+    elif [ "$local_hash" = "$old" ]; then
+      printf '  %-10s %s (as Kit installed it; replaced by %s)\n' REMOVE "$rel" "$new_copy"
+      remove_rel+=("$rel"); remove_hash+=("$local_hash")
+    else
+      # The new skill would shadow the edits, so this upgrade stops.
+      tag="v$base_version"
+      case ",$shipped," in *",$tag,"*) ;; *) tag="${shipped##*,}" ;; esac
+      printf '  %-10s %s (changed since Kit installed it; %s would hide the changes)\n' MODIFIED "$rel" "$new_copy"
+      printf '%s %s %s %s\n' "$p" "$rel" "$new_copy" "$tag" >>"$work/modified"
+      modified=$((modified + 1))
+    fi
   done <"$work/retired"
   jq --arg p "$p" --arg version "$KIT_VERSION" --slurpfile files "$incoming" '
     .installed[$p] = ((.installed[$p] // {}) + {version: $version, files: $files[0]})
@@ -544,6 +600,42 @@ for p in "${packs[@]}"; do
   mv "$work/json-next" "$work/receipt-new.json"
 done
 
+# A customized retired command stops the upgrade before anything is written.
+# Print the recovery with this run's real paths.
+if [ "$modified" -gt 0 ]; then
+  {
+    printf '\nSTOPPED: %d retired Claude command(s) changed since Kit installed them. The new\n' "$modified"
+    printf 'skill copy would hide those changes from Claude Code, so nothing was written.\n'
+    printf 'To upgrade and keep your changes (see "If an upgrade stops on a customized\n'
+    printf 'command" in %s/README.md):\n' "$KIT_ROOT"
+    printf '  1. Copy your customized files somewhere outside .claude/ and .agents/:\n'
+    while read -r mp mrel mnew mtag; do
+      mname="${mrel#.claude/commands/}"; mname="${mname%.md}"
+      printf '       %s, and .agents/skills/%s/SKILL.md if you changed it\n' "$mrel" "$mname"
+    done <"$work/modified"
+    printf '  2. Put back the bytes Kit installed for each command:\n'
+    while read -r mp mrel mnew mtag; do
+      printf '       git -C "%s" show %s:packs/%s/%s >"%s/%s"\n' "$KIT_ROOT" "$mtag" "$mp" "$mrel" "$target" "$mrel"
+    done <"$work/modified"
+    printf '     If you changed a Codex skill, put back the bytes Kit installed or the new ones,\n'
+    printf '     and leave it in place (a missing Kit file stops the upgrade too):\n'
+    while read -r mp mrel mnew mtag; do
+      mname="${mrel#.claude/commands/}"; mname="${mname%.md}"
+      printf '       cp "%s/packs/%s/.agents/skills/%s/SKILL.md" "%s/.agents/skills/%s/SKILL.md"\n' \
+        "$KIT_ROOT" "$mp" "$mname" "$target" "$mname"
+    done <"$work/modified"
+    printf '  3. Run this upgrade again. It removes each command and installs both new copies:\n'
+    while read -r mp mrel mnew mtag; do
+      mname="${mrel#.claude/commands/}"; mname="${mname%.md}"
+      printf '       .agents/skills/%s/SKILL.md and %s\n' "$mname" "$mnew"
+    done <"$work/modified"
+    printf '  4. Reapply your saved customizations to both copies.\n'
+  } >&2
+  if [ "$conflicts" -gt 0 ]; then
+    die "MODIFIED: $modified retired command(s), and $conflicts other conflict(s) listed above; nothing was written. Follow the steps above, reconcile each conflict with its source under $KIT_ROOT/packs, then retry. There is no force option."
+  fi
+  die "MODIFIED: $modified retired command(s); nothing was written. Follow the steps above, then retry. There is no force option."
+fi
 [ "$conflicts" -eq 0 ] || die "CONFLICT: $conflicts file(s); nothing was written. Back up and reconcile each local file with its source under $KIT_ROOT/packs, then retry. There is no force option."
 packs_json="$(printf '%s\n' "${packs[@]}" | jq -R . | jq -s .)"
 jq --arg kit "$KIT_VERSION" --argjson added "$packs_json" --argjson local "$local_mode" '
@@ -598,6 +690,13 @@ if [ "$local_mode" -eq 1 ]; then
     valid_payload_path "$rel" || [ "$rel" = .serel-kit.json ] || die "unsafe local path: $rel"
     specs+=(":(icase)$rel")
   done <"$work/local-paths"
+  # A retired command was a local file too. If Git tracks it now (a later
+  # git add -f), removing it would change what is shared, so it is refused
+  # like any other tracked Kit path. Its exclusion line stays: a linked
+  # worktree sharing this info/exclude may still have the file.
+  for ((i = 0; i < ${#retired_paths[@]}; i++)); do
+    specs+=(":(icase)${retired_paths[$i]}")
+  done
 
   # An ignore rule cannot hide a tracked file, so pretending would share it.
   # icase: a case-insensitive filesystem resolves a case variant to our file.
@@ -654,6 +753,7 @@ fi
 
 if [ "$apply" -eq 0 ] && { [ "$upgrade" -eq 1 ] || [ "$local_mode" -eq 1 ]; }; then
   printf 'Preview only. %d file write(s), including any receipt update' "${#write_rel[@]}"
+  if [ "${#remove_rel[@]}" -gt 0 ]; then printf ', %d removal(s)' "${#remove_rel[@]}"; fi
   if [ "$local_mode" -eq 1 ]; then printf ', and %d new Git exclusion(s)' "$new_exclusions"; fi
   if [ "$upgrade" -eq 1 ]; then
     printf '. Re-run with --upgrade --apply to apply this plan.\n'
@@ -682,6 +782,9 @@ for ((i = 0; i < ${#write_rel[@]}; i++)); do
   if [ -f "$target/${write_rel[$i]}" ]; then
     cp -p "$target/${write_rel[$i]}" "$work/backups/$i"
   fi
+done
+for ((i = 0; i < ${#remove_rel[@]}; i++)); do
+  cp -p "$target/${remove_rel[$i]}" "$work/backups/removed-$i"
 done
 if [ -s "$work/exclude-add" ] && [ -f "$exclude_file" ]; then
   cp -p "$exclude_file" "$work/exclude-backup"
@@ -715,6 +818,16 @@ if [ "$local_mode" -eq 1 ]; then
     git_ignores "$rel" || die "Git does not ignore $rel after adding its exclusion"
   done <"$work/local-paths"
 fi
+# Retired commands go before the payload, so a failed write after a removal
+# is rolled back too. Each is rechecked right before it is removed.
+for ((i = 0; i < ${#remove_rel[@]}; i++)); do
+  rel="${remove_rel[$i]}"
+  check_path_safety "$rel"
+  [ "$(current_hash "$rel")" = "${remove_hash[$i]}" ] ||
+    die "target changed during apply: $rel; restoring this run's changes"
+  removed+=("$i")
+  rm -- "$target/$rel"
+done
 for ((i = 0; i < ${#write_rel[@]}; i++)); do
   rel="${write_rel[$i]}"
   ensure_parent "$rel"
@@ -735,7 +848,10 @@ printf '  written: %d file(s), including any receipt update\n' "${#write_rel[@]}
 if [ "$local_mode" -eq 1 ]; then
   printf '  new Git exclusions: %d in %s\n' "$new_exclusions" "$exclude_file"
 fi
+if [ "${#remove_rel[@]}" -gt 0 ]; then
+  printf '  removed: %d retired command(s)\n' "${#remove_rel[@]}"
+fi
 printf '  identical: %d; kept local: %d; retired: %d\n' "$identical" "$kept" "$retired"
-if [ "${#write_rel[@]}" -eq 0 ] && [ "$new_exclusions" -eq 0 ]; then
+if [ "${#write_rel[@]}" -eq 0 ] && [ "$new_exclusions" -eq 0 ] && [ "${#remove_rel[@]}" -eq 0 ]; then
   printf '  nothing to do — this target is already up to date.\n'
 fi
