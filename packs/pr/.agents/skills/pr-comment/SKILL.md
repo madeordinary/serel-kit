@@ -1,6 +1,6 @@
 ---
 name: pr-comment
-description: "Post a GitHub comment or reply on the user's behalf, with an attribution callout, evidence, and a returned URL. Use for every comment an agent posts."
+description: "Post a GitHub comment or reply on the user's behalf, with an attribution callout, the conclusion first, cited evidence, a secrets check, and a returned URL. Use for every comment an agent posts: whenever you post or reply to a PR comment, review comment, or review thread, including from file-pr, babysit-pr, and modernize-pr."
 ---
 
 # PR comment

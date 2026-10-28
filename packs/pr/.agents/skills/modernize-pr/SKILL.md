@@ -1,6 +1,6 @@
 ---
 name: modernize-pr
-description: "Bring an old pull request up to date, or decide it should not land, with MODERNIZE, REWORK, or CLOSE and the evidence. Rebases with a lease; never merges, closes, or changes the base."
+description: "Bring an old pull request up to date, or decide it should not land, with MODERNIZE, REWORK, or CLOSE and the evidence. Use when the user asks to rebase, update, revive, or modernize an old PR, or whether it should still land. Rebases and pushes only with a lease; never merges, closes, or changes the base."
 ---
 
 # Modernize PR

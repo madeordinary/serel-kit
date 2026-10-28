@@ -1,6 +1,6 @@
 ---
 name: babysit-pr
-description: "Watch a pull request through CI and review with one watcher, fix real findings, decline scope creep, and report when it is ready. Merges only when asked."
+description: "Watch a pull request through CI and review with one watcher (T3 Code's watch_pull_request, or the bundled pr-wait script), fix real findings, decline scope creep with a written reason, and report when it is ready. Use when the user asks to watch, monitor, or babysit a PR. Merges only when explicitly asked."
 ---
 
 # Babysit PR
