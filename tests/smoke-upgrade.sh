@@ -449,32 +449,38 @@ rm -rf "$(sed -n 's/^Recovery files retained at //p' "$tmp/rm-fail.log")"
 # The command changes after the plan hashed it: once after the plan, which
 # the recheck before applying catches with nothing written, and once while
 # the backups are taken, which the recheck right before the removal catches
-# and rolls back. The shim edits the command on the first call that matches.
+# and rolls back. The shim edits the command right after the first call that
+# matches, and the command must end up holding that edit.
 mkdir "$tmp/race-shim"
 cat >"$tmp/race-shim/race" <<'SHIM'
 #!/usr/bin/env bash
-tool="$(basename "$0")"
+case "$(basename "$0")" in cmp) real="$REAL_CMP" ;; cp) real="$REAL_CP" ;; *) exit 127 ;; esac
 case "${*: -1}" in *"$WHEN_SUFFIX") hit=1 ;; *) hit=0 ;; esac
-if [ ! -e "$FAIL_ONCE" ] && [ "$hit" -eq 1 ]; then
-  touch "$FAIL_ONCE"
-  printf 'edited meanwhile\n' >>"$CHANGE"
-fi
-case "$tool" in cmp) exec "$REAL_CMP" "$@" ;; cp) exec "$REAL_CP" "$@" ;; esac
-exit 127
+[ ! -e "$FAIL_ONCE" ] && [ "$hit" -eq 1 ] || exec "$real" "$@"
+# Run the real tool first, then edit: a backup taken here holds the bytes
+# from before the edit, so restoring it would visibly lose the edit.
+touch "$FAIL_ONCE"
+rc=0
+"$real" "$@" || rc=$?
+printf '%s\n' "$EDIT" >>"$CHANGE"
+exit "$rc"
 SHIM
 chmod +x "$tmp/race-shim/race"
 mkdir "$tmp/cmp-shim" "$tmp/cp-race-shim"
 ln -s "$tmp/race-shim/race" "$tmp/cmp-shim/cmp"
 ln -s "$tmp/race-shim/race" "$tmp/cp-race-shim/cp"
 real_cmp="$(command -v cmp)" # resolved before PATH reaches the shim
+race_edit="edited meanwhile"
 # race <shim dir> <destination suffix or empty> <expected message>
 race() {
   local dir="$1" when="$2" message="$3" raced before
   raced="$tmp/raced-$(basename "$1")"
   install_old v0.2.0 "$raced" --packs writing
   cp "$raced/$command_path" "$tmp/raced-command"
+  # What the command holds after the shim's concurrent edit.
+  { cat "$tmp/raced-command"; printf '%s\n' "$race_edit"; } >"$tmp/raced-expected"
   before="$(snapshot "$raced")"
-  if PATH="$dir:$PATH" REAL_CMP="$real_cmp" REAL_CP="$real_cp" CHANGE="$raced/$command_path" \
+  if PATH="$dir:$PATH" REAL_CMP="$real_cmp" REAL_CP="$real_cp" CHANGE="$raced/$command_path" EDIT="$race_edit" \
     WHEN_SUFFIX="$when" FAIL_ONCE="$raced.once" \
     bash "$incoming/install.sh" "$raced" --packs writing --upgrade --apply >"$tmp/raced.log" 2>&1; then
     bad "a command changed after planning was removed"
@@ -482,6 +488,9 @@ race() {
   [ -e "$raced.once" ] || bad "race not exercised: $message"
   grep -qF "$message" "$tmp/raced.log" || { cat "$tmp/raced.log"; bad "recheck not reported: $message"; }
   [ -f "$raced/$command_path" ] || bad "a command that changed was removed"
+  # Rollback must keep the concurrent edit, never put stale bytes back over it.
+  cmp -s "$raced/$command_path" "$tmp/raced-expected" ||
+    bad "the command lost its concurrent edit: $message"
   cp "$tmp/raced-command" "$raced/$command_path" # undo the shim's own edit
   [ "$(snapshot "$raced")" = "$before" ] || bad "a stopped recheck left changes: $message"
   rm -rf "$(sed -n 's/^Recovery files retained at //p' "$tmp/raced.log")"
