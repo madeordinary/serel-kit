@@ -38,6 +38,60 @@ pack_requires_memory() {
   esac
 }
 
+# --- retired Claude commands -------------------------------------------------
+# Kit 0.4.0 moved each workflow's Claude Code command to a skill. This map is
+# the complete list of files an upgrade may remove, each tied to the pack that
+# shipped it: "<pack> <old command> <new skill copy>". Nothing outside it is
+# ever removed, whatever a receipt says.
+# BEGIN RETIRED COMMANDS
+RETIRED_COMMANDS=(
+  "writing .claude/commands/polish.md .claude/skills/polish/SKILL.md"
+  "verify .claude/commands/verify-map.md .claude/skills/verify-map/SKILL.md"
+  "pr .claude/commands/file-pr.md .claude/skills/file-pr/SKILL.md"
+  "pr .claude/commands/babysit-pr.md .claude/skills/babysit-pr/SKILL.md"
+  "pr .claude/commands/modernize-pr.md .claude/skills/modernize-pr/SKILL.md"
+  "pr .claude/commands/pr-comment.md .claude/skills/pr-comment/SKILL.md"
+)
+# END RETIRED COMMANDS
+
+# The bytes each Kit release shipped for those commands: "<old command>
+# <sha256> <tags that shipped exactly these bytes>". Generated from the release
+# tags with `git show <tag>:packs/<pack>/<old command> | sha256`, the same digest
+# hash_stream computes; tests/check-packs.sh regenerates it from the tags and
+# fails on any difference.
+# BEGIN KNOWN COMMAND HASHES
+KNOWN_COMMAND_HASHES=(
+  ".claude/commands/polish.md f43abfad40131a082ac5c21bd50f510b98f1294b452f06c99cac4eda883c8ec8 v0.1.0,v0.2.0,v0.3.0"
+  ".claude/commands/verify-map.md c62253a821cb890fb58a6357a8f6a8128d1398cffad08aee82a81c58bcf21db0 v0.1.0,v0.2.0,v0.3.0"
+  ".claude/commands/file-pr.md b1ce0f20527bc0844c809c042da90c3b15c30a27bedc5f104ce3d45a000335ae v0.3.0"
+  ".claude/commands/babysit-pr.md f328878826669efb0bcb6d5c06fc0173376cd9da299024c48eb7b743b7987e02 v0.3.0"
+  ".claude/commands/modernize-pr.md 060d3f74ad2e0e1e1d6d5d1e8fb9c7f3cda1f98d93d508df27ba261b2056753b v0.3.0"
+  ".claude/commands/pr-comment.md 4c59f6c824b710029462107915347bf8e97437d4e7382b8598451f4345426d2c v0.3.0"
+)
+# END KNOWN COMMAND HASHES
+
+# retired_command <path>: prints "<pack> <new skill copy>" when the path is a
+# mapped command; fails otherwise.
+retired_command() {
+  local entry pack old new
+  for entry in "${RETIRED_COMMANDS[@]}"; do
+    read -r pack old new <<<"$entry"
+    if [ "$old" = "$1" ]; then printf '%s %s\n' "$pack" "$new"; return 0; fi
+  done
+  return 1
+}
+
+# shipped_tags <path> <sha256>: prints the release tags that shipped exactly
+# these bytes at that path (comma-separated); fails when no release did.
+shipped_tags() {
+  local entry old digest tags
+  for entry in "${KNOWN_COMMAND_HASHES[@]}"; do
+    read -r old digest tags <<<"$entry"
+    if [ "$old" = "$1" ] && [ "$digest" = "$2" ]; then printf '%s\n' "$tags"; return 0; fi
+  done
+  return 1
+}
+
 # Files the installer must never create or touch. The payload can only contain
 # `.claude/` and `.agents/` paths, so this is a backstop that fails loudly if a
 # pack is ever shaped wrong.
