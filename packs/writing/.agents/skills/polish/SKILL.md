@@ -25,9 +25,9 @@ polish            # then paste the text
 Use it on prose someone has to act on: a memory bank entry, a PR description,
 a README section, release notes, a handoff, a decision record, a commit body.
 
-Do not use it on code, on generated files, or on text the user did not write
-and cannot change. Do not use it as a review — it improves how a claim reads,
-not whether the claim is true.
+Do not use it on code, on generated files, or on text the user cannot change.
+Do not use it as a review — it improves how a claim reads, not whether the
+claim is true.
 
 ## Required reads
 
