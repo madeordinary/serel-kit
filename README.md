@@ -1,5 +1,7 @@
 # Serel Kit
 
+> **Serel Kit continues as [Tavo Stack](https://github.com/gusfeliciano/tavostack).** This repository is archived and no longer maintained. Existing installs keep working; new projects should start with Tavo Stack.
+
 ![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg) ![Works with Claude Code + Codex](https://img.shields.io/badge/works%20with-Claude%20Code%20%2B%20Codex-5436DA) ![Version 0.4.0](https://img.shields.io/badge/version-0.4.0-blue)
 
 Optional workflow packs for AI coding agents, built to fit
